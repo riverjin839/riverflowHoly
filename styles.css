@@ -1,6 +1,5 @@
 :root {
   --bg: #091225;
-  --bg2: #101e3d;
   --card: rgba(255, 255, 255, 0.1);
   --line: rgba(255, 255, 255, 0.25);
   --text: #f3f6ff;
@@ -8,6 +7,7 @@
   --primary: #9fd3ff;
   --accent: #ffdca8;
   --ok: #9df3c4;
+  --danger: #ffb8b8;
 }
 
 * {
@@ -51,8 +51,9 @@ body {
   margin: 0 auto 20px;
   display: flex;
   justify-content: space-between;
-  align-items: end;
-  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .eyebrow {
@@ -68,6 +69,12 @@ h1 {
 .today {
   margin: 0;
   color: var(--muted);
+}
+
+.date-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .layout {
@@ -118,10 +125,15 @@ h1 {
   grid-template-columns: 1fr auto auto;
 }
 
+.simple-inline {
+  grid-template-columns: 1fr auto;
+}
+
 input,
 textarea,
 select,
-button {
+button,
+.upload-label {
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   background: rgba(255, 255, 255, 0.08);
@@ -130,11 +142,17 @@ button {
   font-size: 0.95rem;
 }
 
-button {
+button,
+.upload-label {
   cursor: pointer;
   background: linear-gradient(120deg, var(--primary), #94b9ff);
   color: #102047;
   font-weight: 600;
+}
+
+.ghost {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text);
 }
 
 ::placeholder {
@@ -154,10 +172,26 @@ button {
   justify-content: space-between;
   gap: 12px;
   align-items: center;
+  flex-wrap: wrap;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   padding: 10px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions button {
+  padding: 6px 9px;
+  font-size: 0.8rem;
+}
+
+.actions .danger {
+  background: linear-gradient(120deg, var(--danger), #ff9f9f);
 }
 
 .badge {
@@ -227,12 +261,24 @@ button {
   margin: 0 0 4px;
 }
 
+.backup-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.help-text {
+  color: var(--muted);
+  margin-bottom: 0;
+}
+
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
   }
 
-  .inline-form {
+  .inline-form,
+  .simple-inline {
     grid-template-columns: 1fr;
   }
 

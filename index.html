@@ -21,13 +21,18 @@
         <p class="eyebrow">Daily Devotional Companion</p>
         <h1>Holy Flow</h1>
       </div>
+      <div class="date-nav">
+        <button type="button" id="prevDateBtn" class="ghost">←</button>
+        <input type="date" id="datePicker" />
+        <button type="button" id="nextDateBtn" class="ghost">→</button>
+      </div>
       <p id="todayLabel" class="today"></p>
     </header>
 
     <main class="layout">
       <section class="card card--hero">
-        <h2>오늘의 경건 루틴</h2>
-        <p>말씀과 기도로 하루를 여는 거룩한 흐름을 기록하세요.</p>
+        <h2>선택한 날짜의 경건 기록</h2>
+        <p>날짜를 이동하며 QT/기도/감사/루틴을 저장·수정·삭제할 수 있습니다.</p>
         <div id="stats" class="stats"></div>
       </section>
 
@@ -42,14 +47,14 @@
           <textarea name="meditation" rows="4" placeholder="말씀 묵상" required></textarea>
           <textarea name="application" rows="3" placeholder="오늘의 적용"></textarea>
           <textarea name="prayer" rows="3" placeholder="기도문" required></textarea>
-          <button type="submit">오늘 QT 저장</button>
+          <button type="submit">QT 저장</button>
         </form>
       </section>
 
       <section class="card">
         <div class="section-title">
           <h3>기도 제목</h3>
-          <span>응답 체크로 은혜를 기억하세요</span>
+          <span>응답 체크 · 수정 · 삭제</span>
         </div>
         <form id="prayerForm" class="inline-form">
           <input name="content" placeholder="기도 제목 입력" required />
@@ -68,9 +73,9 @@
       <section class="card">
         <div class="section-title">
           <h3>감사 노트</h3>
-          <span>하루 3가지 감사</span>
+          <span>하루 3가지 감사 + 편집</span>
         </div>
-        <form id="gratitudeForm" class="inline-form">
+        <form id="gratitudeForm" class="inline-form simple-inline">
           <input name="text" placeholder="감사 제목" required />
           <button type="submit">기록</button>
         </form>
@@ -80,17 +85,35 @@
       <section class="card">
         <div class="section-title">
           <h3>루틴 체크</h3>
-          <span>오늘의 신앙 습관</span>
+          <span>날짜별 저장</span>
         </div>
         <div id="routineList" class="routine-grid"></div>
       </section>
 
       <section class="card">
         <div class="section-title">
-          <h3>최근 QT 기록</h3>
-          <span>하나님이 주신 마음을 되돌아보기</span>
+          <h3>선택 날짜 QT 기록</h3>
+          <span>수정 / 삭제 가능</span>
         </div>
         <div id="qtHistory" class="history"></div>
+      </section>
+
+      <section class="card card--hero">
+        <div class="section-title">
+          <h3>영구 보관 관리</h3>
+          <span>브라우저 저장 + 백업 파일</span>
+        </div>
+        <div class="backup-actions">
+          <button id="exportBtn" type="button">백업 파일 내보내기</button>
+          <label class="upload-label">
+            백업 파일 불러오기
+            <input id="importInput" type="file" accept="application/json" hidden />
+          </label>
+        </div>
+        <p class="help-text">
+          기본 저장은 브라우저(IndexedDB)에 자동 저장됩니다. 기기 교체/브라우저 초기화 대비를 위해 정기적으로
+          백업 파일을 내보내세요.
+        </p>
       </section>
     </main>
 
