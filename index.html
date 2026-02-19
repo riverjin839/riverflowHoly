@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Holy Flow | QT & 경건생활</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow bg-glow--left"></div>
+    <div class="bg-glow bg-glow--right"></div>
+
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Daily Devotional Companion</p>
+        <h1>Holy Flow</h1>
+      </div>
+      <p id="todayLabel" class="today"></p>
+    </header>
+
+    <main class="layout">
+      <section class="card card--hero">
+        <h2>오늘의 경건 루틴</h2>
+        <p>말씀과 기도로 하루를 여는 거룩한 흐름을 기록하세요.</p>
+        <div id="stats" class="stats"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h3>QT 일기장</h3>
+          <span>말씀 · 묵상 · 적용 · 기도</span>
+        </div>
+        <form id="qtForm" class="form-grid">
+          <input name="scripture" placeholder="오늘의 본문 (예: 시편 23:1-6)" required />
+          <input name="title" placeholder="묵상 제목" required />
+          <textarea name="meditation" rows="4" placeholder="말씀 묵상" required></textarea>
+          <textarea name="application" rows="3" placeholder="오늘의 적용"></textarea>
+          <textarea name="prayer" rows="3" placeholder="기도문" required></textarea>
+          <button type="submit">오늘 QT 저장</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h3>기도 제목</h3>
+          <span>응답 체크로 은혜를 기억하세요</span>
+        </div>
+        <form id="prayerForm" class="inline-form">
+          <input name="content" placeholder="기도 제목 입력" required />
+          <select name="category">
+            <option value="개인">개인</option>
+            <option value="가정">가정</option>
+            <option value="교회">교회</option>
+            <option value="일터">일터</option>
+            <option value="선교">선교</option>
+          </select>
+          <button type="submit">추가</button>
+        </form>
+        <ul id="prayerList" class="list"></ul>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h3>감사 노트</h3>
+          <span>하루 3가지 감사</span>
+        </div>
+        <form id="gratitudeForm" class="inline-form">
+          <input name="text" placeholder="감사 제목" required />
+          <button type="submit">기록</button>
+        </form>
+        <ul id="gratitudeList" class="list"></ul>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h3>루틴 체크</h3>
+          <span>오늘의 신앙 습관</span>
+        </div>
+        <div id="routineList" class="routine-grid"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
+          <h3>최근 QT 기록</h3>
+          <span>하나님이 주신 마음을 되돌아보기</span>
+        </div>
+        <div id="qtHistory" class="history"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
