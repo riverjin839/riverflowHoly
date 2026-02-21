@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import socket
+import subprocess
 import sys
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -19,6 +20,11 @@ import threading
 
 DEFAULT_PORT = 4173
 PORT_SCAN_RANGE = 50
+SECURITY_HINT_MARKER = Path.home() / "Library/Application Support/HolyFlow/security_settings_hint_v2"
+SECURITY_SETTINGS_URLS = [
+    "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension",
+    "x-apple.systempreferences:com.apple.preference.security?General",
+]
 
 
 def resolve_app_root() -> Path:
@@ -93,6 +99,38 @@ def build_handler(site_root: Path):
     return _handler
 
 
+def open_security_settings_once() -> None:
+    if not getattr(sys, "frozen", False):
+        return
+
+    if SECURITY_HINT_MARKER.exists():
+        return
+
+    try:
+        SECURITY_HINT_MARKER.parent.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return
+
+    opened = False
+    for url in SECURITY_SETTINGS_URLS:
+        try:
+            subprocess.Popen(
+                ["open", url],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            opened = True
+            break
+        except Exception:
+            continue
+
+    if opened:
+        try:
+            SECURITY_HINT_MARKER.write_text("opened", encoding="utf-8")
+        except OSError:
+            pass
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Holy Flow macOS app launcher")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Preferred localhost port")
@@ -109,6 +147,8 @@ def main() -> int:
     url = f"http://127.0.0.1:{port}/?desktop=1"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
+
+    open_security_settings_once()
 
     if not args.no_open:
         webbrowser.open(url)

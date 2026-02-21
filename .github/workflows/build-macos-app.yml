@@ -36,3 +36,4 @@ jobs:
           path: |
             dist/HolyFlow-macOS-App/HolyFlow.app
             dist/HolyFlow-macOS-App/README-MACOS.txt
+            dist/HolyFlow-macOS-App/Open-Privacy-and-Security.command

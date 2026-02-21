@@ -10,6 +10,7 @@ TARGET_ARCH="${TARGET_ARCH:-}"
 OUTPUT_DIR="${DIST_DIR}/${APP_NAME}-macOS-App"
 ZIP_FILE="${DIST_DIR}/${APP_NAME}-macOS-App.zip"
 ENTRY_SCRIPT="${ROOT_DIR}/portable/macos/HolyFlowPortable.py"
+HELPER_SCRIPT="${OUTPUT_DIR}/Open-Privacy-and-Security.command"
 
 if [[ ! -f "${ENTRY_SCRIPT}" ]]; then
   echo "Entry script not found: ${ENTRY_SCRIPT}" >&2
@@ -45,6 +46,25 @@ python3 -m PyInstaller \
   "${PYINSTALLER_ARGS[@]}" \
   "${ENTRY_SCRIPT}"
 
+cat > "${HELPER_SCRIPT}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+APP_PATH="${SCRIPT_DIR}/HolyFlow.app"
+SETTINGS_URL="x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension"
+FALLBACK_URL="x-apple.systempreferences:com.apple.preference.security?General"
+
+open "${SETTINGS_URL}" || open "${FALLBACK_URL}" || true
+sleep 1
+
+if [[ -d "${APP_PATH}" ]]; then
+  open "${APP_PATH}" || true
+fi
+EOF
+
+chmod +x "${HELPER_SCRIPT}"
+
 cat > "${OUTPUT_DIR}/README-MACOS.txt" <<EOF
 Holy Flow - macOS App (${APP_NAME})
 ====================================
@@ -54,7 +74,9 @@ Holy Flow - macOS App (${APP_NAME})
 3) Keep Holy Flow window open while using the app
 
 Tips
-- If macOS blocks the app, right-click ${APP_NAME}.app and choose Open.
+- If macOS blocks the app, run Open-Privacy-and-Security.command.
+- In Settings > Privacy & Security, click "Open Anyway (그래도 열기)" for ${APP_NAME}.
+- You can also right-click ${APP_NAME}.app and choose Open.
 - If port 4173 is busy, the app chooses another free localhost port.
 - To stop the app, click the "앱 종료" button in the top bar.
 EOF

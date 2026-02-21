@@ -93,7 +93,10 @@ CI 자동 빌드:
 4. 브라우저가 자동으로 열리면 그대로 사용
 
 참고:
-- 처음 실행 시 macOS 보안 경고가 나오면 `HolyFlow.app`을 우클릭 후 `열기`로 실행
+- 첫 실행 시 macOS가 앱을 차단하면 `Open-Privacy-and-Security.command`를 실행하면 `개인정보 보호 및 보안` 창이 자동으로 열립니다.
+- `설정 > 개인정보 보호 및 보안`에서 `HolyFlow` 항목의 `그래도 열기`를 누른 뒤 다시 실행하세요.
+- 런처가 실행되면 보안 설정 창을 1회 자동 오픈해 해당 위치로 바로 이동할 수 있게 처리되어 있습니다.
+- 필요 시 `HolyFlow.app`을 우클릭 후 `열기`로도 실행할 수 있습니다.
 - 앱 종료는 상단의 `앱 종료` 버튼으로 종료
 - 4173 포트가 이미 사용 중이면 자동으로 다른 포트 사용
 - 다운로드 파일에 확장자가 안 보이면 파일명 끝에 `.zip`을 붙인 뒤 압축 해제하세요.
@@ -109,6 +112,7 @@ chmod +x ./scripts/build-mac-app.sh
 생성 결과:
 - `dist/HolyFlow-macOS-App/HolyFlow.app`
 - `dist/HolyFlow-macOS-App/README-MACOS.txt`
+- `dist/HolyFlow-macOS-App/Open-Privacy-and-Security.command`
 - `dist/HolyFlow-macOS-App.zip`
 
 CI 자동 빌드:
