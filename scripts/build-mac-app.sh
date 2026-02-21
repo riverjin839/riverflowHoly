@@ -56,6 +56,7 @@ Holy Flow - macOS App (${APP_NAME})
 Tips
 - If macOS blocks the app, right-click ${APP_NAME}.app and choose Open.
 - If port 4173 is busy, the app chooses another free localhost port.
+- To stop the app, click the "앱 종료" button in the top bar.
 EOF
 
 rm -f "${ZIP_FILE}"

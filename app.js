@@ -36,11 +36,13 @@ const cloneDefault = () => JSON.parse(JSON.stringify(defaultState));
 const $ = (selector) => document.querySelector(selector);
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
+const desktopMode = new URLSearchParams(window.location.search).get('desktop') === '1';
 
 let state = cloneDefault();
 let selectedDate = toDateKey();
 let db;
 let deferredPrompt;
+let calendarCursor = new Date();
 
 const supportsSecureBackup = () => Boolean(window.crypto?.subtle && window.crypto?.getRandomValues);
 const supportsCompression = () => typeof CompressionStream !== 'undefined';
@@ -223,6 +225,33 @@ const loadFallback = () => {
   }
 };
 
+const toDateFromKey = (dateKey) => {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+
+const setCalendarCursorFromDateKey = (dateKey) => {
+  const date = toDateFromKey(dateKey);
+  calendarCursor = new Date(date.getFullYear(), date.getMonth(), 1);
+};
+
+const getRecordedDateKeySet = () => {
+  const recorded = new Set();
+
+  state.qts.forEach((item) => item?.dateKey && recorded.add(item.dateKey));
+  state.prayers.forEach((item) => item?.dateKey && recorded.add(item.dateKey));
+  state.gratitudes.forEach((item) => item?.dateKey && recorded.add(item.dateKey));
+
+  Object.entries(state.routineByDate).forEach(([dateKey, routineMap]) => {
+    if (!routineMap || typeof routineMap !== 'object') return;
+    if (Object.values(routineMap).some(Boolean)) {
+      recorded.add(dateKey);
+    }
+  });
+
+  return recorded;
+};
+
 const loadState = async () => {
   if (!openDB) {
     state = loadFallback();
@@ -264,6 +293,49 @@ const ensureRoutineForSelectedDate = () => {
 const renderDateHeader = () => {
   $('#datePicker').value = selectedDate;
   $('#todayLabel').textContent = fromDateKeyToLabel(selectedDate);
+};
+
+const renderCalendar = () => {
+  const monthLabelEl = $('#calendarMonthLabel');
+  const calendarGridEl = $('#calendarGrid');
+  if (!monthLabelEl || !calendarGridEl) return;
+
+  const year = calendarCursor.getFullYear();
+  const month = calendarCursor.getMonth();
+  const firstDay = new Date(year, month, 1);
+  const startWeekday = firstDay.getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayKey = toDateKey();
+  const recordedDateSet = getRecordedDateKeySet();
+
+  monthLabelEl.textContent = `${year}년 ${month + 1}월`;
+
+  let cells = '';
+  for (let index = 0; index < 42; index += 1) {
+    const dayNumber = index - startWeekday + 1;
+    if (dayNumber < 1 || dayNumber > daysInMonth) {
+      cells += `<div class="calendar-day calendar-day--empty" aria-hidden="true"></div>`;
+      continue;
+    }
+
+    const cellDateKey = toDateKey(new Date(year, month, dayNumber));
+    const selectedClass = cellDateKey === selectedDate ? 'calendar-day--selected' : '';
+    const todayClass = cellDateKey === todayKey ? 'calendar-day--today' : '';
+    const heart = recordedDateSet.has(cellDateKey) ? '<span class="calendar-heart" aria-hidden="true">♥</span>' : '';
+    cells += `
+      <button
+        type="button"
+        class="calendar-day ${selectedClass} ${todayClass}"
+        data-calendar-date="${cellDateKey}"
+        aria-label="${cellDateKey} 기록 보기"
+      >
+        <span class="calendar-day-num">${dayNumber}</span>
+        ${heart}
+      </button>
+    `;
+  }
+
+  calendarGridEl.innerHTML = cells;
 };
 
 const renderStats = () => {
@@ -363,6 +435,7 @@ const renderHistory = () => {
 
 const rerender = async () => {
   renderDateHeader();
+  renderCalendar();
   renderStats();
   renderPrayers();
   renderGratitudes();
@@ -375,6 +448,7 @@ const shiftDate = async (diff) => {
   const date = new Date(selectedDate);
   date.setDate(date.getDate() + diff);
   selectedDate = toDateKey(date);
+  setCalendarCursorFromDateKey(selectedDate);
   await rerender();
 };
 
@@ -410,6 +484,27 @@ const registerServiceWorker = async () => {
   } catch {
     // ignore registration error
   }
+};
+
+const registerDesktopShutdown = () => {
+  const shutdownBtn = $('#shutdownAppBtn');
+  if (!shutdownBtn) return;
+
+  if (!desktopMode) {
+    shutdownBtn.hidden = true;
+    return;
+  }
+
+  shutdownBtn.hidden = false;
+  shutdownBtn.addEventListener('click', async () => {
+    shutdownBtn.disabled = true;
+    try {
+      await fetch('/__holyflow_shutdown', { method: 'GET', cache: 'no-store' });
+    } catch {
+      // ignore shutdown endpoint error
+    }
+    window.close();
+  });
 };
 $('#qtForm').addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -472,6 +567,29 @@ document.body.addEventListener('change', async (event) => {
 });
 
 document.body.addEventListener('click', async (event) => {
+  const calendarDateBtn = event.target.closest('[data-calendar-date]');
+  if (calendarDateBtn) {
+    const dateKey = calendarDateBtn.dataset.calendarDate;
+    if (dateKey) {
+      selectedDate = dateKey;
+      setCalendarCursorFromDateKey(dateKey);
+      await rerender();
+    }
+    return;
+  }
+
+  if (event.target.id === 'calendarPrevMonthBtn') {
+    calendarCursor.setMonth(calendarCursor.getMonth() - 1, 1);
+    renderCalendar();
+    return;
+  }
+
+  if (event.target.id === 'calendarNextMonthBtn') {
+    calendarCursor.setMonth(calendarCursor.getMonth() + 1, 1);
+    renderCalendar();
+    return;
+  }
+
   const id = event.target.dataset;
 
   if (id.qtDelete) {
@@ -569,6 +687,7 @@ document.body.addEventListener('click', async (event) => {
 
 $('#datePicker').addEventListener('change', async (event) => {
   selectedDate = event.target.value || toDateKey();
+  setCalendarCursorFromDateKey(selectedDate);
   await rerender();
 });
 
@@ -604,8 +723,10 @@ $('#importInput').addEventListener('change', async (event) => {
 
 (async () => {
   registerInstallPrompt();
+  registerDesktopShutdown();
   await registerServiceWorker();
   await loadState();
+  setCalendarCursorFromDateKey(selectedDate);
   ensureRoutineForSelectedDate();
   await rerender();
 })();

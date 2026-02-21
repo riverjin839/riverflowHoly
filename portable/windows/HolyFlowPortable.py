@@ -9,14 +9,12 @@ from __future__ import annotations
 import argparse
 import socket
 import sys
-import threading
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
-import tkinter as tk
-from tkinter import messagebox
+import threading
 
 
 DEFAULT_PORT = 4173
@@ -60,6 +58,16 @@ class HolyFlowHandler(SimpleHTTPRequestHandler):
         return target
 
     def do_GET(self) -> None:
+        if urlsplit(self.path).path == "/__holyflow_shutdown":
+            payload = b"Shutting down Holy Flow."
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+            threading.Thread(target=self.server.shutdown, daemon=True).start()
+            return
+
         target = self._safe_target(self.path)
         if target is None:
             self.send_error(403, "Forbidden")
@@ -86,45 +94,6 @@ def build_handler(site_root: Path):
     return _handler
 
 
-def run_ui(url: str, server: ThreadingHTTPServer, initial_open: bool) -> None:
-    root = tk.Tk()
-    root.title("Holy Flow")
-    root.geometry("430x190")
-    root.resizable(False, False)
-
-    frame = tk.Frame(root, padx=18, pady=18)
-    frame.pack(fill="both", expand=True)
-
-    tk.Label(frame, text="Holy Flow is running.", font=("Segoe UI", 12, "bold")).pack(anchor="w")
-    tk.Label(frame, text=f"Address: {url}", font=("Segoe UI", 10)).pack(anchor="w", pady=(8, 2))
-    tk.Label(
-        frame,
-        text="Keep this window open while using the app.",
-        font=("Segoe UI", 9),
-        fg="#444444",
-    ).pack(anchor="w", pady=(0, 12))
-
-    buttons = tk.Frame(frame)
-    buttons.pack(anchor="w")
-
-    tk.Button(buttons, text="Open Browser", width=14, command=lambda: webbrowser.open(url)).pack(side="left")
-
-    def shutdown():
-        try:
-            server.shutdown()
-            server.server_close()
-        finally:
-            root.destroy()
-
-    tk.Button(buttons, text="Exit", width=12, command=shutdown).pack(side="left", padx=(8, 0))
-    root.protocol("WM_DELETE_WINDOW", shutdown)
-
-    if initial_open:
-        root.after(250, lambda: webbrowser.open(url))
-
-    root.mainloop()
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Holy Flow Windows portable launcher")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Preferred localhost port")
@@ -142,13 +111,18 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/"
+    url = f"http://127.0.0.1:{port}/?desktop=1"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
 
-    run_ui(url=url, server=server, initial_open=(not args.no_open))
+    if not args.no_open:
+        webbrowser.open(url)
+
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
+
     return 0
 
 
@@ -156,6 +130,14 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except Exception as exc:  # pragma: no cover - launcher fallback path
-        tk.Tk().withdraw()
-        messagebox.showerror("Holy Flow", f"Launcher failed:\n{exc}")
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+
+            root = tk.Tk()
+            root.withdraw()
+            messagebox.showerror("Holy Flow", f"Launcher failed:\n{exc}")
+            root.destroy()
+        except Exception:
+            pass
         raise
