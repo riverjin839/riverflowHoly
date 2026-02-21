@@ -5,7 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-4';
+const APP_BUNDLE_VERSION = '20260221-5';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 
 const defaultState = {
@@ -461,14 +461,32 @@ const getActiveAiConfig = () => {
 
 const setBibleAssistantLoading = (loading) => {
   const btn = $('#bibleAssistantSubmitBtn');
+  const input = $('#biblePassageInput');
+  const loadingEl = $('#bibleAssistantLoading');
   if (!btn) return;
   btn.disabled = loading;
-  btn.textContent = loading ? '불러오는 중...' : '불러오기';
+  btn.textContent = loading ? '요청 중...' : '불러오기';
+  if (input) input.disabled = loading;
+  if (loadingEl) loadingEl.hidden = !loading;
 };
 
-const renderBibleAssistantResult = ({ passage, bibleVersion, provider, passageText, summary, explanation, error } = {}) => {
+const renderBibleAssistantResult = ({
+  passage,
+  bibleVersion,
+  provider,
+  passageText,
+  summary,
+  explanation,
+  error,
+  loading,
+} = {}) => {
   const container = $('#bibleAssistantResult');
   if (!container) return;
+
+  if (loading) {
+    container.innerHTML = '<p class="help-text">AI 분석 중입니다. 잠시만 기다려주세요.</p>';
+    return;
+  }
 
   if (error) {
     container.innerHTML = `<p class="help-text error-text">${toHtmlMultiline(error)}</p>`;
@@ -824,7 +842,7 @@ $('#bibleAssistantForm')?.addEventListener('submit', async (event) => {
   if (!passage) return;
 
   setBibleAssistantLoading(true);
-  renderBibleAssistantResult({ error: 'AI 분석 중입니다...' });
+  renderBibleAssistantResult({ loading: true });
 
   try {
     const result = await requestBibleAssistant(passage);

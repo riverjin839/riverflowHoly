@@ -356,7 +356,7 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-4"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-5"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 
