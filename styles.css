@@ -144,7 +144,7 @@ h1 {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 270px;
+  width: 320px;
   padding: 12px;
   border-radius: 14px;
   border: 1px solid var(--line);
@@ -182,6 +182,12 @@ h1 {
 
 .card--hero {
   grid-column: 1 / -1;
+}
+
+.record-calendar-card {
+  max-width: 290px;
+  padding: 12px;
+  align-self: start;
 }
 
 .section-title {
@@ -499,6 +505,90 @@ button,
   height: 18px;
 }
 
+.settings-group + .settings-group {
+  margin-top: 12px;
+}
+
+.settings-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.settings-list {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.settings-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.settings-inline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.settings-delete-btn {
+  padding: 5px 9px;
+  font-size: 0.78rem;
+}
+
+#recordCalendarCard .section-title {
+  margin-bottom: 8px;
+}
+
+#recordCalendarCard .section-title span {
+  font-size: 0.72rem;
+}
+
+#recordCalendarCard #calendarMonthLabel {
+  min-width: 90px;
+  font-size: 0.84rem;
+}
+
+#recordCalendarCard .calendar-toolbar {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+#recordCalendarCard .calendar-weekdays {
+  margin-bottom: 4px;
+  font-size: 0.64rem;
+  gap: 2px;
+}
+
+#recordCalendarCard .calendar-grid {
+  gap: 2px;
+}
+
+#recordCalendarCard .calendar-day {
+  min-height: 24px;
+  padding: 2px 0;
+  border-radius: 6px;
+}
+
+#recordCalendarCard .calendar-day-num {
+  font-size: 0.72rem;
+}
+
+#recordCalendarCard .calendar-heart {
+  font-size: 0.54rem;
+}
+
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
@@ -509,7 +599,11 @@ button,
   }
 
   .settings-popover {
-    width: min(92vw, 270px);
+    width: min(92vw, 320px);
+  }
+
+  .record-calendar-card {
+    max-width: 100%;
   }
 
   .inline-form,

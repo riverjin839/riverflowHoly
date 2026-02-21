@@ -5,6 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
+const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 
 const defaultState = {
   qts: [],
@@ -12,7 +13,10 @@ const defaultState = {
   gratitudes: [],
   routineByDate: {},
   ui: {
-    showRecordCalendar: true,
+    settingsVersion: 2,
+    showRecordCalendar: false,
+    showQtHistory: false,
+    prayerCategories: defaultPrayerCategories,
   },
 };
 
@@ -38,6 +42,34 @@ const fromDateKeyToLabel = (dateKey) => {
 const toDateDisplayLabel = (dateKey) => {
   const [y, m, d] = dateKey.split('-');
   return `${y}. ${m}. ${d}.`;
+};
+
+const escapeHtml = (value = '') =>
+  String(value).replace(/[&<>"']/g, (char) => {
+    const entities = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+    return entities[char] || char;
+  });
+
+const normalizeCategoryList = (categories) => {
+  const source = Array.isArray(categories) ? categories : [];
+  const unique = [];
+  const seen = new Set();
+
+  source.forEach((raw) => {
+    if (typeof raw !== 'string') return;
+    const name = raw.trim();
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    unique.push(name);
+  });
+
+  return unique.length ? unique : [...defaultPrayerCategories];
 };
 
 const cloneDefault = () => JSON.parse(JSON.stringify(defaultState));
@@ -129,6 +161,8 @@ const normalizeState = (parsed) => {
   }
 
   const rawUi = parsed.ui && typeof parsed.ui === 'object' && !Array.isArray(parsed.ui) ? parsed.ui : {};
+  const settingsVersion = Number(rawUi.settingsVersion || 0);
+  const hasSettingsV2 = settingsVersion >= 2;
 
   return {
     ...cloneDefault(),
@@ -141,7 +175,10 @@ const normalizeState = (parsed) => {
         ? parsed.routineByDate
         : {},
     ui: {
-      showRecordCalendar: rawUi.showRecordCalendar !== false,
+      settingsVersion: 2,
+      showRecordCalendar: hasSettingsV2 ? rawUi.showRecordCalendar === true : false,
+      showQtHistory: hasSettingsV2 ? rawUi.showQtHistory === true : false,
+      prayerCategories: normalizeCategoryList(rawUi.prayerCategories),
     },
   };
 };
@@ -343,12 +380,55 @@ const renderDateHeader = () => {
   if (todayLabel) todayLabel.textContent = fromDateKeyToLabel(selectedDate);
 };
 
+const renderPrayerCategoryOptions = () => {
+  const select = $('#prayerCategorySelect');
+  if (!select) return;
+
+  const categories = normalizeCategoryList(state?.ui?.prayerCategories);
+  const previousValue = select.value;
+  select.innerHTML = categories
+    .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+    .join('');
+
+  if (categories.includes(previousValue)) {
+    select.value = previousValue;
+  } else {
+    [select.value] = categories;
+  }
+};
+
+const renderPrayerCategorySettings = () => {
+  const listEl = $('#prayerCategorySettingsList');
+  if (!listEl) return;
+
+  const categories = normalizeCategoryList(state?.ui?.prayerCategories);
+  listEl.innerHTML = categories
+    .map(
+      (name, index) => `
+      <li class="settings-list-item">
+        <span>${escapeHtml(name)}</span>
+        <button type="button" class="danger-ghost settings-delete-btn" data-category-delete="${index}">삭제</button>
+      </li>
+    `,
+    )
+    .join('');
+};
+
 const renderDisplaySettings = () => {
-  const showRecordCalendar = state?.ui?.showRecordCalendar !== false;
-  const toggle = $('#toggleRecordCalendar');
-  const card = $('#recordCalendarCard');
-  if (toggle) toggle.checked = showRecordCalendar;
-  if (card) card.hidden = !showRecordCalendar;
+  const showRecordCalendar = state?.ui?.showRecordCalendar === true;
+  const showQtHistory = state?.ui?.showQtHistory === true;
+  const recordToggle = $('#toggleRecordCalendar');
+  const historyToggle = $('#toggleQtHistory');
+  const recordCard = $('#recordCalendarCard');
+  const historyCard = $('#qtHistoryCard');
+
+  if (recordToggle) recordToggle.checked = showRecordCalendar;
+  if (historyToggle) historyToggle.checked = showQtHistory;
+  if (recordCard) recordCard.hidden = !showRecordCalendar;
+  if (historyCard) historyCard.hidden = !showQtHistory;
+
+  renderPrayerCategorySettings();
+  renderPrayerCategoryOptions();
 };
 
 const buildCalendarCells = ({ year, month, recordedDateSet, todayKey, compact = false }) => {
@@ -404,6 +484,7 @@ const renderCalendar = () => {
       month,
       recordedDateSet,
       todayKey,
+      compact: true,
     });
   }
 
@@ -615,10 +696,13 @@ $('#qtForm').addEventListener('submit', async (event) => {
 $('#prayerForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
+  const categories = normalizeCategoryList(state?.ui?.prayerCategories);
+  const selectedCategory = String(data.get('category') || '').trim();
+  const category = categories.includes(selectedCategory) ? selectedCategory : categories[0];
   state.prayers.unshift({
     id: crypto.randomUUID(),
     content: data.get('content'),
-    category: data.get('category'),
+    category,
     answered: false,
     dateKey: selectedDate,
   });
@@ -651,6 +735,12 @@ document.body.addEventListener('change', async (event) => {
 
   if (event.target.id === 'toggleRecordCalendar') {
     state.ui.showRecordCalendar = event.target.checked;
+    await rerender();
+    return;
+  }
+
+  if (event.target.id === 'toggleQtHistory') {
+    state.ui.showQtHistory = event.target.checked;
     await rerender();
     return;
   }
@@ -692,6 +782,41 @@ document.body.addEventListener('click', async (event) => {
 
   if (event.target.id === 'settingsCloseBtn') {
     setSettingsPopoverOpen(false);
+    return;
+  }
+
+  if (event.target.id === 'addPrayerCategoryBtn') {
+    const inputEl = $('#prayerCategoryInput');
+    if (!inputEl) return;
+
+    const newName = inputEl.value.trim();
+    if (!newName) return;
+
+    const categories = normalizeCategoryList(state?.ui?.prayerCategories);
+    if (categories.includes(newName)) {
+      alert('이미 같은 카테고리가 있습니다.');
+      return;
+    }
+
+    state.ui.prayerCategories = [...categories, newName];
+    inputEl.value = '';
+    await rerender();
+    return;
+  }
+
+  const categoryDeleteBtn = event.target.closest('[data-category-delete]');
+  if (categoryDeleteBtn) {
+    const deleteIndex = Number(categoryDeleteBtn.dataset.categoryDelete);
+    if (Number.isNaN(deleteIndex)) return;
+
+    const categories = normalizeCategoryList(state?.ui?.prayerCategories);
+    if (categories.length <= 1) {
+      alert('카테고리는 최소 1개 이상 필요합니다.');
+      return;
+    }
+
+    state.ui.prayerCategories = categories.filter((_, index) => index !== deleteIndex);
+    await rerender();
     return;
   }
 
@@ -853,6 +978,12 @@ $('#datePicker').addEventListener('change', async (event) => {
   selectedDate = event.target.value || toDateKey();
   setCalendarCursorFromDateKey(selectedDate);
   await rerender();
+});
+
+$('#prayerCategoryInput')?.addEventListener('keydown', (event) => {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  $('#addPrayerCategoryBtn')?.click();
 });
 
 $('#importInput').addEventListener('change', async (event) => {
