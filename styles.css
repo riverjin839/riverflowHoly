@@ -272,6 +272,18 @@ button,
   flex-wrap: wrap;
 }
 
+.backup-options {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.backup-options label {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .help-text {
   color: var(--muted);
   margin-bottom: 0;
