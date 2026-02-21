@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import socket
+import ssl
 import subprocess
 import sys
 import webbrowser
@@ -29,6 +30,24 @@ AI_TIMEOUT_SECONDS = 45
 OPENAI_MODEL = "gpt-4.1-mini"
 CLAUDE_MODEL = "claude-3-5-haiku-latest"
 GEMINI_MODEL = "gemini-2.0-flash"
+
+try:
+    import certifi
+except Exception:  # pragma: no cover - optional dependency fallback
+    certifi = None
+
+
+def build_ssl_context() -> ssl.SSLContext:
+    context = ssl.create_default_context()
+    if certifi is not None:
+        try:
+            context.load_verify_locations(cafile=certifi.where())
+        except Exception:
+            pass
+    return context
+
+
+SSL_CONTEXT = build_ssl_context()
 
 
 def build_ai_prompt(passage: str, bible_version: str) -> str:
@@ -79,13 +98,18 @@ def http_json_post(url: str, headers: dict[str, str], payload: dict) -> dict:
     )
 
     try:
-        with urlrequest.urlopen(request, timeout=AI_TIMEOUT_SECONDS) as response:
+        with urlrequest.urlopen(request, timeout=AI_TIMEOUT_SECONDS, context=SSL_CONTEXT) as response:
             raw = response.read().decode("utf-8")
             return json.loads(raw) if raw else {}
     except urlerror.HTTPError as exc:
         error_body = exc.read().decode("utf-8", errors="ignore")
         raise RuntimeError(f"AI API 오류({exc.code}): {error_body[:240] or exc.reason}") from exc
     except urlerror.URLError as exc:
+        reason_text = str(exc.reason)
+        if "CERTIFICATE_VERIFY_FAILED" in reason_text or "unable to get local issuer certificate" in reason_text:
+            raise RuntimeError(
+                "AI API SSL 인증서 검증에 실패했습니다. 최신 EXE로 재빌드/재설치하고, 백신 또는 사내 HTTPS 검사 설정을 확인해주세요."
+            ) from exc
         raise RuntimeError(f"AI API 연결 오류: {exc.reason}") from exc
 
 
@@ -377,7 +401,7 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-5"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-6"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 

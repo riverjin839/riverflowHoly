@@ -24,7 +24,7 @@ New-Item -Path $outputDir -ItemType Directory -Force | Out-Null
 New-Item -Path $workDir -ItemType Directory -Force | Out-Null
 New-Item -Path $specDir -ItemType Directory -Force | Out-Null
 
-& $PythonExe -m pip install --upgrade pip pyinstaller
+& $PythonExe -m pip install --upgrade pip pyinstaller certifi
 
 $pyinstallerArgs = @(
   "--noconfirm",
@@ -35,6 +35,8 @@ $pyinstallerArgs = @(
   "--distpath", $outputDir,
   "--workpath", $workDir,
   "--specpath", $specDir,
+  "--hidden-import", "certifi",
+  "--collect-data", "certifi",
   "--add-data", "$root\index.html;.",
   "--add-data", "$root\styles.css;.",
   "--add-data", "$root\app.js;.",

@@ -5,7 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-5';
+const APP_BUNDLE_VERSION = '20260221-6';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 
 const defaultState = {
@@ -461,12 +461,12 @@ const getActiveAiConfig = () => {
 
 const setBibleAssistantLoading = (loading) => {
   const btn = $('#bibleAssistantSubmitBtn');
-  const input = $('#biblePassageInput');
+  const qtInput = $('#qtScriptureInput') || $('#qtForm input[name="scripture"]');
   const loadingEl = $('#bibleAssistantLoading');
   if (!btn) return;
   btn.disabled = loading;
-  btn.textContent = loading ? '요청 중...' : '불러오기';
-  if (input) input.disabled = loading;
+  btn.textContent = loading ? '요청 중...' : '오늘의 본문으로 불러오기';
+  if (qtInput) qtInput.disabled = loading;
   if (loadingEl) loadingEl.hidden = !loading;
 };
 
@@ -494,7 +494,7 @@ const renderBibleAssistantResult = ({
   }
 
   if (!passageText && !summary && !explanation) {
-    container.innerHTML = '<p class="help-text">설정에서 API 키/번역을 선택한 뒤 본문을 입력하세요.</p>';
+    container.innerHTML = '<p class="help-text">설정에서 API 키/번역을 선택한 뒤 QT 일기장의 오늘의 본문을 입력하세요.</p>';
     return;
   }
 
@@ -836,10 +836,28 @@ const requestBibleAssistant = async (passage) => {
   };
 };
 
+const getBibleAssistantPassage = () => {
+  const qtInput = $('#qtScriptureInput') || $('#qtForm input[name="scripture"]');
+  const typedPassage = asSafeString(qtInput?.value);
+  if (typedPassage) return typedPassage;
+
+  for (let i = state.qts.length - 1; i >= 0; i -= 1) {
+    const qt = state.qts[i];
+    if (qt?.dateKey !== selectedDate) continue;
+    const scripture = asSafeString(qt?.scripture);
+    if (scripture) return scripture;
+  }
+
+  return '';
+};
+
 $('#bibleAssistantForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const passage = asSafeString(new FormData(event.currentTarget).get('passage'));
-  if (!passage) return;
+  const passage = getBibleAssistantPassage();
+  if (!passage) {
+    renderBibleAssistantResult({ error: "QT 일기장의 '오늘의 본문'을 먼저 입력하거나 저장해주세요." });
+    return;
+  }
 
   setBibleAssistantLoading(true);
   renderBibleAssistantResult({ loading: true });

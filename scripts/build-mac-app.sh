@@ -20,7 +20,7 @@ fi
 rm -rf "${OUTPUT_DIR}" "${WORK_DIR}" "${SPEC_DIR}"
 mkdir -p "${OUTPUT_DIR}" "${WORK_DIR}" "${SPEC_DIR}"
 
-python3 -m pip install --upgrade pip pyinstaller
+python3 -m pip install --upgrade pip pyinstaller certifi
 
 PYINSTALLER_ARGS=(
   --noconfirm
@@ -30,6 +30,8 @@ PYINSTALLER_ARGS=(
   --distpath "${OUTPUT_DIR}"
   --workpath "${WORK_DIR}"
   --specpath "${SPEC_DIR}"
+  --hidden-import certifi
+  --collect-data certifi
   --add-data "${ROOT_DIR}/index.html:."
   --add-data "${ROOT_DIR}/styles.css:."
   --add-data "${ROOT_DIR}/app.js:."

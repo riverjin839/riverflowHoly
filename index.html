@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260221-5" />
+    <link rel="stylesheet" href="styles.css?v=20260221-6" />
   </head>
   <body>
     <div class="bg-glow bg-glow--left"></div>
@@ -167,7 +167,7 @@
           <span>말씀 · 묵상 · 적용 · 기도</span>
         </div>
         <form id="qtForm" class="form-grid">
-          <input name="scripture" placeholder="오늘의 본문 (예: 시편 23:1-6)" required />
+          <input id="qtScriptureInput" name="scripture" placeholder="오늘의 본문 (예: 시편 23:1-6)" required />
           <input name="title" placeholder="묵상 제목" required />
           <textarea name="meditation" rows="4" placeholder="말씀 묵상" required></textarea>
           <textarea name="application" rows="3" placeholder="오늘의 적용"></textarea>
@@ -182,15 +182,15 @@
           <span>본문 출력 · 요약 · 설명</span>
         </div>
         <form id="bibleAssistantForm" class="simple-inline">
-          <input id="biblePassageInput" name="passage" placeholder="본문 입력 (예: 요한복음 3:16-17)" required />
-          <button type="submit" id="bibleAssistantSubmitBtn">불러오기</button>
+          <button type="submit" id="bibleAssistantSubmitBtn">오늘의 본문으로 불러오기</button>
         </form>
+        <p class="help-text">QT 일기장의 '오늘의 본문' 값을 사용합니다.</p>
         <div id="bibleAssistantLoading" class="assistant-loading" hidden>
           <span class="assistant-spinner" aria-hidden="true"></span>
           <span>분석 중입니다...</span>
         </div>
         <div id="bibleAssistantResult" class="assistant-result">
-          <p class="help-text">설정에서 API 키/번역을 선택한 뒤 본문을 입력하세요.</p>
+          <p class="help-text">설정에서 API 키/번역을 선택한 뒤 QT 일기장의 오늘의 본문을 입력하세요.</p>
         </div>
       </section>
 
@@ -261,6 +261,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260221-5"></script>
+    <script src="app.js?v=20260221-6"></script>
   </body>
 </html>
