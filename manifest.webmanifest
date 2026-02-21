@@ -1,0 +1,17 @@
+{
+  "name": "Holy Flow - QT & 경건생활",
+  "short_name": "Holy Flow",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#091225",
+  "theme_color": "#0d1b3e",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "assets/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
