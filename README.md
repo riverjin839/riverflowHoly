@@ -79,6 +79,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-win-exe.ps1
 
 CI 자동 빌드:
 - GitHub Actions의 `Build Windows EXE` 워크플로에서 아티팩트로 EXE를 받을 수 있습니다.
+- 릴리즈 노트 템플릿: `/docs/release-notes/windows-exe-template.md`
 
 ## Windows 포터블 배포 패키지 만들기
 macOS/Linux에서 아래 명령을 실행하면 Windows에서 압축 해제 후 바로 실행 가능한 폴더가 생성됩니다.
