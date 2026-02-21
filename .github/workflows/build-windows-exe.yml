@@ -1,0 +1,44 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "codex/**"
+    paths:
+      - "index.html"
+      - "styles.css"
+      - "app.js"
+      - "sw.js"
+      - "manifest.webmanifest"
+      - "assets/**"
+      - "portable/windows/HolyFlowPortable.py"
+      - "scripts/build-win-exe.ps1"
+      - ".github/workflows/build-windows-exe.yml"
+
+jobs:
+  build-exe:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build HolyFlow.exe
+        shell: pwsh
+        run: ./scripts/build-win-exe.ps1 -PythonExe python
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HolyFlow-Windows-EXE
+          path: |
+            dist/HolyFlow-Windows-EXE/HolyFlow.exe
+            dist/HolyFlow-Windows-EXE/README-EXE.txt
+            dist/HolyFlow-Windows-EXE.zip

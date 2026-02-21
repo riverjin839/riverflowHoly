@@ -53,6 +53,33 @@ python3 -m http.server 4173
 ```
 브라우저에서 `http://localhost:4173` 접속
 
+## Windows 사용자: EXE 하나로 실행
+가장 쉬운 방법은 `HolyFlow.exe` 단일 파일을 받아 더블클릭하는 방식입니다.
+
+실행 방법:
+1. `HolyFlow.exe` 다운로드
+2. 더블클릭 실행
+3. 브라우저가 자동으로 열리면 그대로 사용
+
+참고:
+- 앱 종료는 Holy Flow 창의 `Exit` 버튼으로 종료
+- 4173 포트가 이미 사용 중이면 자동으로 다른 포트 사용
+
+## 개발자용: Windows 단일 EXE 빌드
+Windows에서 아래 명령으로 `HolyFlow.exe`를 생성할 수 있습니다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-win-exe.ps1
+```
+
+생성 결과:
+- `dist/HolyFlow-Windows-EXE/HolyFlow.exe`
+- `dist/HolyFlow-Windows-EXE/README-EXE.txt`
+- `dist/HolyFlow-Windows-EXE.zip`
+
+CI 자동 빌드:
+- GitHub Actions의 `Build Windows EXE` 워크플로에서 아티팩트로 EXE를 받을 수 있습니다.
+
 ## Windows 포터블 배포 패키지 만들기
 macOS/Linux에서 아래 명령을 실행하면 Windows에서 압축 해제 후 바로 실행 가능한 폴더가 생성됩니다.
 
