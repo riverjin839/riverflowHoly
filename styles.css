@@ -54,6 +54,8 @@ body {
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
+  position: relative;
+  z-index: 40;
 }
 
 .eyebrow {
@@ -130,6 +132,7 @@ h1 {
   flex-wrap: wrap;
   justify-content: flex-end;
   position: relative;
+  z-index: 45;
 }
 
 .icon-btn {
@@ -184,10 +187,33 @@ h1 {
   grid-column: 1 / -1;
 }
 
+.daily-summary-card .stats {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.daily-summary-card {
+  grid-column: 1 / 2;
+}
+
+.daily-summary-card--wide {
+  grid-column: 1 / -1;
+}
+
+.daily-summary-card .stat {
+  padding: 10px;
+}
+
+.daily-summary-card .stat strong {
+  font-size: 1.15rem;
+}
+
 .record-calendar-card {
-  max-width: 290px;
-  padding: 12px;
+  grid-column: 2 / 3;
+  width: 248px;
+  max-width: 248px;
+  padding: 10px;
   align-self: start;
+  justify-self: end;
 }
 
 .section-title {
@@ -552,41 +578,41 @@ button,
 }
 
 #recordCalendarCard .section-title span {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
 }
 
 #recordCalendarCard #calendarMonthLabel {
-  min-width: 90px;
-  font-size: 0.84rem;
+  min-width: 76px;
+  font-size: 0.75rem;
 }
 
 #recordCalendarCard .calendar-toolbar {
-  gap: 6px;
-  margin-bottom: 6px;
+  gap: 4px;
+  margin-bottom: 4px;
 }
 
 #recordCalendarCard .calendar-weekdays {
-  margin-bottom: 4px;
-  font-size: 0.64rem;
-  gap: 2px;
+  margin-bottom: 3px;
+  font-size: 0.6rem;
+  gap: 1px;
 }
 
 #recordCalendarCard .calendar-grid {
-  gap: 2px;
+  gap: 1px;
 }
 
 #recordCalendarCard .calendar-day {
-  min-height: 24px;
-  padding: 2px 0;
-  border-radius: 6px;
+  min-height: 18px;
+  padding: 1px 0;
+  border-radius: 5px;
 }
 
 #recordCalendarCard .calendar-day-num {
-  font-size: 0.72rem;
+  font-size: 0.62rem;
 }
 
 #recordCalendarCard .calendar-heart {
-  font-size: 0.54rem;
+  font-size: 0.48rem;
 }
 
 @media (max-width: 860px) {
@@ -602,8 +628,20 @@ button,
     width: min(92vw, 320px);
   }
 
+  .daily-summary-card .stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .daily-summary-card,
+  .daily-summary-card--wide {
+    grid-column: 1 / -1;
+  }
+
   .record-calendar-card {
+    grid-column: 1 / -1;
     max-width: 100%;
+    width: 100%;
+    justify-self: stretch;
   }
 
   .inline-form,

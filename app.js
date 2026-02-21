@@ -5,6 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
+const APP_BUNDLE_VERSION = '20260221-3';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 
 const defaultState = {
@@ -13,7 +14,7 @@ const defaultState = {
   gratitudes: [],
   routineByDate: {},
   ui: {
-    settingsVersion: 2,
+    settingsVersion: 3,
     showRecordCalendar: false,
     showQtHistory: false,
     prayerCategories: defaultPrayerCategories,
@@ -162,7 +163,7 @@ const normalizeState = (parsed) => {
 
   const rawUi = parsed.ui && typeof parsed.ui === 'object' && !Array.isArray(parsed.ui) ? parsed.ui : {};
   const settingsVersion = Number(rawUi.settingsVersion || 0);
-  const hasSettingsV2 = settingsVersion >= 2;
+  const hasSettingsV3 = settingsVersion >= 3;
 
   return {
     ...cloneDefault(),
@@ -175,9 +176,9 @@ const normalizeState = (parsed) => {
         ? parsed.routineByDate
         : {},
     ui: {
-      settingsVersion: 2,
-      showRecordCalendar: hasSettingsV2 ? rawUi.showRecordCalendar === true : false,
-      showQtHistory: hasSettingsV2 ? rawUi.showQtHistory === true : false,
+      settingsVersion: 3,
+      showRecordCalendar: hasSettingsV3 ? rawUi.showRecordCalendar === true : false,
+      showQtHistory: hasSettingsV3 ? rawUi.showQtHistory === true : false,
       prayerCategories: normalizeCategoryList(rawUi.prayerCategories),
     },
   };
@@ -421,11 +422,13 @@ const renderDisplaySettings = () => {
   const historyToggle = $('#toggleQtHistory');
   const recordCard = $('#recordCalendarCard');
   const historyCard = $('#qtHistoryCard');
+  const summaryCard = $('#dailySummaryCard');
 
   if (recordToggle) recordToggle.checked = showRecordCalendar;
   if (historyToggle) historyToggle.checked = showQtHistory;
   if (recordCard) recordCard.hidden = !showRecordCalendar;
   if (historyCard) historyCard.hidden = !showQtHistory;
+  if (summaryCard) summaryCard.classList.toggle('daily-summary-card--wide', !showRecordCalendar);
 
   renderPrayerCategorySettings();
   renderPrayerCategoryOptions();
@@ -651,7 +654,8 @@ const registerInstallPrompt = () => {
 const registerServiceWorker = async () => {
   if (!('serviceWorker' in navigator)) return;
   try {
-    await navigator.serviceWorker.register('./sw.js');
+    const registration = await navigator.serviceWorker.register(`./sw.js?v=${APP_BUNDLE_VERSION}`);
+    registration.update?.();
   } catch {
     // ignore registration error
   }

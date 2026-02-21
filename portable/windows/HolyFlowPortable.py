@@ -7,6 +7,7 @@ static files on localhost and opens the default browser automatically.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import socket
 import subprocess
@@ -97,22 +98,70 @@ def build_handler(site_root: Path):
 
 
 def open_in_app_mode(url: str) -> bool:
+    pf = Path(os.environ.get("ProgramFiles", ""))
+    pfx86 = Path(os.environ.get("ProgramFiles(x86)", ""))
+    local = Path(os.environ.get("LOCALAPPDATA", ""))
+
     browser_commands = (
-        ("msedge", [f"--app={url}"]),
-        ("chrome", [f"--app={url}"]),
-        ("brave", [f"--app={url}"]),
-        ("vivaldi", [f"--app={url}"]),
+        (
+            "msedge",
+            [
+                pfx86 / "Microsoft/Edge/Application/msedge.exe",
+                pf / "Microsoft/Edge/Application/msedge.exe",
+            ],
+        ),
+        (
+            "chrome",
+            [
+                pf / "Google/Chrome/Application/chrome.exe",
+                pfx86 / "Google/Chrome/Application/chrome.exe",
+                local / "Google/Chrome/Application/chrome.exe",
+            ],
+        ),
+        (
+            "brave",
+            [
+                pf / "BraveSoftware/Brave-Browser/Application/brave.exe",
+                pfx86 / "BraveSoftware/Brave-Browser/Application/brave.exe",
+                local / "BraveSoftware/Brave-Browser/Application/brave.exe",
+            ],
+        ),
+        (
+            "vivaldi",
+            [
+                pf / "Vivaldi/Application/vivaldi.exe",
+                pfx86 / "Vivaldi/Application/vivaldi.exe",
+                local / "Vivaldi/Application/vivaldi.exe",
+            ],
+        ),
     )
 
-    for executable, args in browser_commands:
+    for executable, candidates in browser_commands:
         resolved = shutil.which(executable)
-        if not resolved:
-            continue
+        binaries: list[str] = []
+        if resolved:
+            binaries.append(resolved)
+        binaries.extend([str(path) for path in candidates if path.exists()])
+
+        for binary in binaries:
+            try:
+                subprocess.Popen(
+                    [binary, f"--app={url}"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                return True
+            except OSError:
+                continue
+
+    create_no_window = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    for executable, _ in browser_commands:
         try:
             subprocess.Popen(
-                [resolved, *args],
+                ["cmd", "/c", "start", "", executable, f"--app={url}"],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
+                creationflags=create_no_window,
             )
             return True
         except OSError:
@@ -137,7 +186,7 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1&app=1"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-3"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 
