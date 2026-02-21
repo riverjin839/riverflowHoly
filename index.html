@@ -64,6 +64,26 @@
       <div class="top-actions">
         <button type="button" id="installBtn" class="ghost" hidden>앱 설치</button>
         <button type="button" id="shutdownAppBtn" class="ghost danger-ghost" hidden>앱 종료</button>
+        <button
+          type="button"
+          id="settingsToggleBtn"
+          class="ghost icon-btn"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-label="설정 열기"
+        >
+          ⚙
+        </button>
+        <div id="settingsPopover" class="settings-popover" role="dialog" aria-label="화면 설정" hidden>
+          <div class="settings-popover__header">
+            <strong>설정</strong>
+            <button type="button" id="settingsCloseBtn" class="ghost">닫기</button>
+          </div>
+          <label class="setting-toggle">
+            <input type="checkbox" id="toggleRecordCalendar" />
+            <span>기록 달력 카드 표시</span>
+          </label>
+        </div>
         <p id="todayLabel" class="today"></p>
       </div>
     </header>
@@ -73,17 +93,6 @@
         <h2>선택한 날짜의 경건 기록</h2>
         <p>날짜를 이동하며 QT/기도/감사/루틴을 저장·수정·삭제할 수 있습니다.</p>
         <div id="stats" class="stats"></div>
-      </section>
-
-      <section class="card">
-        <div class="section-title">
-          <h3>설정</h3>
-          <span>화면 표시 옵션</span>
-        </div>
-        <label class="setting-toggle">
-          <input type="checkbox" id="toggleRecordCalendar" />
-          <span>기록 달력 카드 표시</span>
-        </label>
       </section>
 
       <section class="card card--hero" id="recordCalendarCard">

@@ -44,7 +44,11 @@ const cloneDefault = () => JSON.parse(JSON.stringify(defaultState));
 const $ = (selector) => document.querySelector(selector);
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
-const desktopMode = new URLSearchParams(window.location.search).get('desktop') === '1';
+const searchParams = new URLSearchParams(window.location.search);
+const desktopMode = searchParams.get('desktop') === '1';
+const forcedAppMode = searchParams.get('app') === '1';
+const standaloneMode = Boolean(window.matchMedia?.('(display-mode: standalone)')?.matches || window.navigator.standalone);
+const appLikeMode = desktopMode || forcedAppMode || standaloneMode;
 
 let state = cloneDefault();
 let selectedDate = toDateKey();
@@ -52,6 +56,7 @@ let db;
 let deferredPrompt;
 let calendarCursor = new Date();
 let datePopoverOpen = false;
+let settingsPopoverOpen = false;
 
 const supportsSecureBackup = () => Boolean(window.crypto?.subtle && window.crypto?.getRandomValues);
 const supportsCompression = () => typeof CompressionStream !== 'undefined';
@@ -320,6 +325,15 @@ const setDatePopoverOpen = (isOpen) => {
   datePopoverOpen = isOpen;
 };
 
+const setSettingsPopoverOpen = (isOpen) => {
+  const popover = $('#settingsPopover');
+  const toggle = $('#settingsToggleBtn');
+  if (!popover || !toggle) return;
+  popover.hidden = !isOpen;
+  toggle.setAttribute('aria-expanded', String(isOpen));
+  settingsPopoverOpen = isOpen;
+};
+
 const renderDateHeader = () => {
   const datePicker = $('#datePicker');
   const datePickerLabel = $('#datePickerLabel');
@@ -526,6 +540,12 @@ const findById = (array, id) => array.find((item) => item.id === id);
 
 const registerInstallPrompt = () => {
   const installBtn = $('#installBtn');
+  if (!installBtn) return;
+
+  if (appLikeMode) {
+    installBtn.hidden = true;
+    return;
+  }
 
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault();
@@ -645,6 +665,8 @@ document.body.addEventListener('change', async (event) => {
 document.body.addEventListener('click', async (event) => {
   const datePickerToggleBtn = $('#datePickerToggle');
   const datePickerPopover = $('#datePickerPopover');
+  const settingsToggleBtn = $('#settingsToggleBtn');
+  const settingsPopover = $('#settingsPopover');
 
   if (datePopoverOpen && datePickerToggleBtn && datePickerPopover) {
     const clickedToggle = datePickerToggleBtn.contains(event.target);
@@ -654,7 +676,27 @@ document.body.addEventListener('click', async (event) => {
     }
   }
 
+  if (settingsPopoverOpen && settingsToggleBtn && settingsPopover) {
+    const clickedToggle = settingsToggleBtn.contains(event.target);
+    const clickedInsidePopover = settingsPopover.contains(event.target);
+    if (!clickedToggle && !clickedInsidePopover) {
+      setSettingsPopoverOpen(false);
+    }
+  }
+
+  if (event.target.closest('#settingsToggleBtn')) {
+    setDatePopoverOpen(false);
+    setSettingsPopoverOpen(!settingsPopoverOpen);
+    return;
+  }
+
+  if (event.target.id === 'settingsCloseBtn') {
+    setSettingsPopoverOpen(false);
+    return;
+  }
+
   if (event.target.closest('#datePickerToggle')) {
+    setSettingsPopoverOpen(false);
     if (!datePopoverOpen) {
       setCalendarCursorFromDateKey(selectedDate);
       renderCalendar();
@@ -799,8 +841,12 @@ document.body.addEventListener('click', async (event) => {
 
 document.addEventListener('keydown', (event) => {
   if (event.key !== 'Escape') return;
-  if (!datePopoverOpen) return;
-  setDatePopoverOpen(false);
+  if (datePopoverOpen) {
+    setDatePopoverOpen(false);
+  }
+  if (settingsPopoverOpen) {
+    setSettingsPopoverOpen(false);
+  }
 });
 
 $('#datePicker').addEventListener('change', async (event) => {

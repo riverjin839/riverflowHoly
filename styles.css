@@ -129,6 +129,39 @@ h1 {
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+  position: relative;
+}
+
+.icon-btn {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.settings-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 270px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(10, 23, 52, 0.95);
+  box-shadow: 0 16px 36px rgba(3, 6, 18, 0.6);
+  z-index: 32;
+}
+
+.settings-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.settings-popover__header strong {
+  font-size: 0.95rem;
 }
 .layout {
   max-width: 1100px;
@@ -473,6 +506,10 @@ button,
 
   .date-popover {
     width: min(92vw, 292px);
+  }
+
+  .settings-popover {
+    width: min(92vw, 270px);
   }
 
   .inline-form,

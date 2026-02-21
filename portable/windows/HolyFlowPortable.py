@@ -7,7 +7,9 @@ static files on localhost and opens the default browser automatically.
 from __future__ import annotations
 
 import argparse
+import shutil
 import socket
+import subprocess
 import sys
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -94,6 +96,30 @@ def build_handler(site_root: Path):
     return _handler
 
 
+def open_in_app_mode(url: str) -> bool:
+    browser_commands = (
+        ("msedge", [f"--app={url}"]),
+        ("chrome", [f"--app={url}"]),
+        ("brave", [f"--app={url}"]),
+        ("vivaldi", [f"--app={url}"]),
+    )
+
+    for executable, args in browser_commands:
+        resolved = shutil.which(executable)
+        if not resolved:
+            continue
+        try:
+            subprocess.Popen(
+                [resolved, *args],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Holy Flow Windows portable launcher")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Preferred localhost port")
@@ -111,12 +137,13 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 
     if not args.no_open:
-        webbrowser.open(url)
+        if not open_in_app_mode(url):
+            webbrowser.open(url)
 
     try:
         server.serve_forever()

@@ -131,6 +131,27 @@ def open_security_settings_once() -> None:
             pass
 
 
+def open_in_app_mode(url: str) -> bool:
+    browser_apps = (
+        "Google Chrome",
+        "Microsoft Edge",
+        "Brave Browser",
+        "Vivaldi",
+    )
+
+    for app_name in browser_apps:
+        try:
+            subprocess.Popen(
+                ["open", "-na", app_name, "--args", f"--app={url}"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            return True
+        except OSError:
+            continue
+    return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Holy Flow macOS app launcher")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Preferred localhost port")
@@ -144,14 +165,15 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 
     open_security_settings_once()
 
     if not args.no_open:
-        webbrowser.open(url)
+        if not open_in_app_mode(url):
+            webbrowser.open(url)
 
     try:
         server.serve_forever()
