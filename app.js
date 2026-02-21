@@ -35,7 +35,10 @@ const $ = (selector) => document.querySelector(selector);
 let state = cloneDefault();
 let selectedDate = toDateKey();
 let db;
+<<<<<<< HEAD
 let deferredPrompt;
+=======
+>>>>>>> 27273b8b8bc7a0ae4d636f62efb7b00d67273b77
 
 const openDB =
   window.indexedDB &&
@@ -215,6 +218,7 @@ const shiftDate = async (diff) => {
 
 const findById = (array, id) => array.find((item) => item.id === id);
 
+<<<<<<< HEAD
 const registerInstallPrompt = () => {
   const installBtn = $('#installBtn');
 
@@ -247,6 +251,8 @@ const registerServiceWorker = async () => {
   }
 };
 
+=======
+>>>>>>> 27273b8b8bc7a0ae4d636f62efb7b00d67273b77
 $('#qtForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
@@ -402,8 +408,11 @@ $('#importInput').addEventListener('change', async (event) => {
 });
 
 (async () => {
+<<<<<<< HEAD
   registerInstallPrompt();
   await registerServiceWorker();
+=======
+>>>>>>> 27273b8b8bc7a0ae4d636f62efb7b00d67273b77
   await loadState();
   ensureRoutineForSelectedDate();
   await rerender();
