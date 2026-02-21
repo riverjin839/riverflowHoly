@@ -111,16 +111,23 @@
           <h3>영구 보관 관리</h3>
           <span>브라우저 저장 + 백업 파일</span>
         </div>
+        <div class="backup-options">
+          <label for="backupModeSelect">백업 방식</label>
+          <select id="backupModeSelect">
+            <option value="json">일반 JSON (호환성)</option>
+            <option value="secure">보호 백업 (비밀번호 + 압축)</option>
+          </select>
+        </div>
         <div class="backup-actions">
           <button id="exportBtn" type="button">백업 파일 내보내기</button>
           <label class="upload-label">
             백업 파일 불러오기
-            <input id="importInput" type="file" accept="application/json" hidden />
+            <input id="importInput" type="file" accept=".json,.hfbak,application/json" hidden />
           </label>
         </div>
         <p class="help-text">
           기본 저장은 브라우저(IndexedDB)에 자동 저장됩니다. 기기 교체/브라우저 초기화 대비를 위해 정기적으로
-          백업 파일을 내보내세요.
+          백업 파일을 내보내세요. 보호 백업을 선택하면 비밀번호 + 암호화 파일(.hfbak)로 저장됩니다.
         </p>
       </section>
     </main>

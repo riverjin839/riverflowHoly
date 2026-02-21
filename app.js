@@ -2,6 +2,9 @@ const DB_NAME = 'holy-flow-db';
 const DB_STORE = 'state';
 const DB_KEY = 'main';
 const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
+const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
+const SECURE_BACKUP_VERSION = 1;
+const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
 
 const defaultState = {
   qts: [],
@@ -31,11 +34,173 @@ const fromDateKeyToLabel = (dateKey) => {
 
 const cloneDefault = () => JSON.parse(JSON.stringify(defaultState));
 const $ = (selector) => document.querySelector(selector);
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
 
 let state = cloneDefault();
 let selectedDate = toDateKey();
 let db;
 let deferredPrompt;
+
+const supportsSecureBackup = () => Boolean(window.crypto?.subtle && window.crypto?.getRandomValues);
+const supportsCompression = () => typeof CompressionStream !== 'undefined';
+const supportsDecompression = () => typeof DecompressionStream !== 'undefined';
+
+const toBase64 = (bytes) => {
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+};
+
+const fromBase64 = (base64) => {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+};
+
+const compressBytes = async (bytes) => {
+  if (!supportsCompression()) {
+    return { bytes, compression: 'none' };
+  }
+
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
+  const compressedBuffer = await new Response(stream).arrayBuffer();
+  return { bytes: new Uint8Array(compressedBuffer), compression: 'gzip' };
+};
+
+const decompressBytes = async (bytes, compression) => {
+  if (compression === 'none') return bytes;
+  if (compression !== 'gzip') {
+    throw new Error('지원하지 않는 백업 압축 형식입니다.');
+  }
+  if (!supportsDecompression()) {
+    throw new Error('이 백업은 압축 형식(gzip)입니다. 최신 브라우저에서 복원해주세요.');
+  }
+
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  const decompressedBuffer = await new Response(stream).arrayBuffer();
+  return new Uint8Array(decompressedBuffer);
+};
+
+const deriveBackupKey = async (password, salt, iterations) => {
+  const baseKey = await crypto.subtle.importKey('raw', textEncoder.encode(password), { name: 'PBKDF2' }, false, [
+    'deriveKey',
+  ]);
+
+  return crypto.subtle.deriveKey(
+    {
+      name: 'PBKDF2',
+      hash: 'SHA-256',
+      salt,
+      iterations,
+    },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt'],
+  );
+};
+
+const sanitizeImportedState = (parsed) => {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('백업 형식이 올바르지 않습니다.');
+  }
+
+  return {
+    ...cloneDefault(),
+    ...parsed,
+    qts: Array.isArray(parsed.qts) ? parsed.qts : [],
+    prayers: Array.isArray(parsed.prayers) ? parsed.prayers : [],
+    gratitudes: Array.isArray(parsed.gratitudes) ? parsed.gratitudes : [],
+    routineByDate:
+      parsed.routineByDate && typeof parsed.routineByDate === 'object' && !Array.isArray(parsed.routineByDate)
+        ? parsed.routineByDate
+        : {},
+  };
+};
+
+const downloadFile = (content, filename, type = 'application/json') => {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
+const createSecureBackupText = async (data, password) => {
+  const payload = {
+    version: SECURE_BACKUP_VERSION,
+    exportedAt: new Date().toISOString(),
+    state: data,
+  };
+  const payloadBytes = textEncoder.encode(JSON.stringify(payload));
+  const compressed = await compressBytes(payloadBytes);
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveBackupKey(password, salt, SECURE_BACKUP_PBKDF2_ITERATIONS);
+  const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, compressed.bytes);
+
+  return JSON.stringify(
+    {
+      format: SECURE_BACKUP_FORMAT,
+      version: SECURE_BACKUP_VERSION,
+      createdAt: new Date().toISOString(),
+      compression: compressed.compression,
+      kdf: {
+        name: 'PBKDF2',
+        hash: 'SHA-256',
+        iterations: SECURE_BACKUP_PBKDF2_ITERATIONS,
+        salt: toBase64(salt),
+      },
+      cipher: {
+        name: 'AES-GCM',
+        iv: toBase64(iv),
+      },
+      ciphertext: toBase64(new Uint8Array(cipherBuffer)),
+    },
+    null,
+    2,
+  );
+};
+
+const isSecureBackupEnvelope = (parsed) =>
+  Boolean(parsed && typeof parsed === 'object' && parsed.format === SECURE_BACKUP_FORMAT);
+
+const restoreSecureBackupState = async (envelope, password) => {
+  if (!isSecureBackupEnvelope(envelope)) {
+    throw new Error('보호 백업 파일 형식이 올바르지 않습니다.');
+  }
+
+  const iterations = Number(envelope?.kdf?.iterations);
+  const saltValue = envelope?.kdf?.salt;
+  const ivValue = envelope?.cipher?.iv;
+  const ciphertextValue = envelope?.ciphertext;
+
+  if (!iterations || !saltValue || !ivValue || !ciphertextValue) {
+    throw new Error('보호 백업 파일 메타데이터가 누락되었습니다.');
+  }
+
+  try {
+    const salt = fromBase64(saltValue);
+    const iv = fromBase64(ivValue);
+    const ciphertext = fromBase64(ciphertextValue);
+    const key = await deriveBackupKey(password, salt, iterations);
+    const plainBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+    const plainBytes = await decompressBytes(new Uint8Array(plainBuffer), envelope.compression || 'none');
+    const payload = JSON.parse(textDecoder.decode(plainBytes));
+    return sanitizeImportedState(payload?.state ?? payload);
+  } catch {
+    throw new Error('비밀번호가 올바르지 않거나 백업 파일이 손상되었습니다.');
+  }
+};
 
 const openDB =
   window.indexedDB &&
@@ -365,13 +530,40 @@ document.body.addEventListener('click', async (event) => {
   }
 
   if (event.target.id === 'exportBtn') {
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `holy-flow-backup-${toDateKey()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const backupMode = $('#backupModeSelect')?.value || 'json';
+
+    if (backupMode === 'secure') {
+      if (!supportsSecureBackup()) {
+        alert('현재 브라우저는 보호 백업(암호화)을 지원하지 않습니다.');
+        return;
+      }
+
+      const password = prompt('보호 백업 비밀번호를 입력하세요. (8자 이상 권장)');
+      if (!password) return;
+      if (password.length < 8) {
+        alert('비밀번호는 8자 이상을 권장합니다.');
+        return;
+      }
+
+      const confirmPassword = prompt('비밀번호를 한 번 더 입력하세요.');
+      if (confirmPassword !== password) {
+        alert('비밀번호가 일치하지 않습니다.');
+        return;
+      }
+
+      try {
+        const secureBackupText = await createSecureBackupText(state, password);
+        downloadFile(secureBackupText, `holy-flow-backup-${toDateKey()}.hfbak`);
+        if (!supportsCompression()) {
+          alert('이 브라우저는 압축을 지원하지 않아 암호화만 적용된 백업으로 저장되었습니다.');
+        }
+      } catch {
+        alert('보호 백업 파일 생성에 실패했습니다.');
+      }
+      return;
+    }
+
+    downloadFile(JSON.stringify(state, null, 2), `holy-flow-backup-${toDateKey()}.json`);
   }
 });
 
@@ -384,20 +576,30 @@ $('#importInput').addEventListener('change', async (event) => {
   const file = event.target.files?.[0];
   if (!file) return;
 
-  const text = await file.text();
   try {
+    const text = await file.text();
     const parsed = JSON.parse(text);
-    state = {
-      ...cloneDefault(),
-      ...parsed,
-      routineByDate: parsed.routineByDate || {},
-    };
+
+    if (isSecureBackupEnvelope(parsed)) {
+      if (!supportsSecureBackup()) {
+        alert('현재 브라우저는 보호 백업 복원을 지원하지 않습니다.');
+        return;
+      }
+
+      const password = prompt('보호 백업 복원 비밀번호를 입력하세요.');
+      if (!password) return;
+      state = await restoreSecureBackupState(parsed, password);
+    } else {
+      state = sanitizeImportedState(parsed);
+    }
+
     await rerender();
     alert('백업 복원이 완료되었습니다.');
-  } catch {
-    alert('올바른 백업 파일(JSON)이 아닙니다.');
+  } catch (error) {
+    alert(error?.message || '올바른 백업 파일이 아닙니다.');
+  } finally {
+    event.target.value = '';
   }
-  event.target.value = '';
 });
 
 (async () => {
