@@ -27,8 +27,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HolyFlow-Windows-EXE
+          name: HolyFlow-Windows-EXE.zip
           path: |
             dist/HolyFlow-Windows-EXE/HolyFlow.exe
             dist/HolyFlow-Windows-EXE/README-EXE.txt
-            dist/HolyFlow-Windows-EXE.zip

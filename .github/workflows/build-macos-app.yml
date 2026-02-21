@@ -9,7 +9,19 @@ on:
 
 jobs:
   build-app:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-13
+            app_name: HolyFlow-Intel
+            target_arch: x86_64
+            artifact_name: HolyFlow-macOS-Intel.zip
+          - runner: macos-14
+            app_name: HolyFlow-AppleSilicon
+            target_arch: arm64
+            artifact_name: HolyFlow-macOS-AppleSilicon.zip
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout
@@ -22,6 +34,9 @@ jobs:
 
       - name: Build HolyFlow.app
         shell: bash
+        env:
+          APP_NAME: ${{ matrix.app_name }}
+          TARGET_ARCH: ${{ matrix.target_arch }}
         run: |
           chmod +x ./scripts/build-mac-app.sh
           ./scripts/build-mac-app.sh
@@ -29,8 +44,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HolyFlow-macOS-App
+          name: ${{ matrix.artifact_name }}
           path: |
-            dist/HolyFlow-macOS-App/HolyFlow.app
-            dist/HolyFlow-macOS-App/README-MACOS.txt
-            dist/HolyFlow-macOS-App.zip
+            dist/${{ matrix.app_name }}-macOS-App/${{ matrix.app_name }}.app
+            dist/${{ matrix.app_name }}-macOS-App/README-MACOS.txt
