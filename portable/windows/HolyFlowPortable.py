@@ -115,9 +115,15 @@ def build_basic_fallback_result(
         explanation += f"\n원본 API 오류: {compact_error}\n기본 요청 모드로 대체 응답했습니다."
 
     return {
-        "passageText": f"[기본 요청 모드] {bible_version} · {passage}",
+        "passageText": (
+            f"[기본 요청 모드]\n"
+            f"요청 구절: {passage}\n"
+            f"요청 번역: {bible_version}\n"
+            "실제 구절 전문은 API 응답이 필요합니다."
+        ),
         "summary": (
-            f"요청 본문은 '{passage}' 입니다. 오늘 적용할 한 가지 결단을 짧게 정리해 보세요. "
+            f"기본 요청 질문: '{passage}' 본문을 '{bible_version}' 기준으로 출력하고, "
+            "3문장 이내 요약과 쉬운 설명을 생성해 주세요. "
             f"(기본 요청 사용 {used}/{total})"
         ),
         "explanation": explanation,
@@ -528,7 +534,7 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-8"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-9"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 

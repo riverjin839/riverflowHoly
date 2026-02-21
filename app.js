@@ -5,8 +5,16 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-8';
+const APP_BUNDLE_VERSION = '20260221-9';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
+const aiProviders = ['openai', 'claude', 'gemini', 'grok', 'perplexity'];
+const aiProviderLabelMap = {
+  openai: 'ChatGPT',
+  claude: 'Claude',
+  gemini: 'Gemini',
+  grok: 'Grok',
+  perplexity: 'Perplexity',
+};
 
 const defaultState = {
   qts: [],
@@ -80,8 +88,7 @@ const normalizeCategoryList = (categories) => {
   return unique.length ? unique : [...defaultPrayerCategories];
 };
 
-const normalizeAiProvider = (provider) =>
-  (['openai', 'claude', 'gemini', 'grok', 'perplexity'].includes(provider) ? provider : 'openai');
+const normalizeAiProvider = (provider) => (aiProviders.includes(provider) ? provider : 'openai');
 
 const normalizeBibleVersion = (version) => (['개역개정', '우리말성경'].includes(version) ? version : '개역개정');
 
@@ -455,30 +462,45 @@ const renderAiSettings = () => {
   if (geminiInput) geminiInput.value = asSafeString(uiState.geminiApiKey);
   if (grokInput) grokInput.value = asSafeString(uiState.grokApiKey);
   if (perplexityInput) perplexityInput.value = asSafeString(uiState.perplexityApiKey);
+  document.querySelectorAll('[data-ai-key-field]').forEach((field) => {
+    field.hidden = field.getAttribute('data-ai-key-field') !== normalizeAiProvider(uiState.aiProvider);
+  });
 };
 
-const getActiveAiConfig = () => {
-  const provider = normalizeAiProvider(state?.ui?.aiProvider);
-  const bibleVersion = normalizeBibleVersion(state?.ui?.bibleVersion);
-  const keyMap = {
+const getAiKeyMap = () => ({
     openai: asSafeString(state?.ui?.openaiApiKey),
     claude: asSafeString(state?.ui?.claudeApiKey),
     gemini: asSafeString(state?.ui?.geminiApiKey),
     grok: asSafeString(state?.ui?.grokApiKey),
     perplexity: asSafeString(state?.ui?.perplexityApiKey),
-  };
-  return { provider, bibleVersion, apiKey: keyMap[provider] || '' };
+  });
+
+const getActiveAiConfig = () => {
+  const provider = normalizeAiProvider(state?.ui?.aiProvider);
+  const bibleVersion = normalizeBibleVersion(state?.ui?.bibleVersion);
+  const keyMap = getAiKeyMap();
+  return { provider, bibleVersion, apiKey: keyMap[provider] || '', keyMap };
 };
+
+const buildAiAttemptProviders = (selectedProvider, keyMap) => {
+  const ordered = [selectedProvider, ...aiProviders.filter((provider) => provider !== selectedProvider)];
+  const keyedProviders = ordered.filter((provider) => Boolean(asSafeString(keyMap[provider])));
+  if (!keyedProviders.length) return [selectedProvider];
+  if (keyedProviders.includes(selectedProvider)) return keyedProviders;
+  return [...keyedProviders, selectedProvider];
+};
+
+const isBasicModePayload = (result) => asSafeString(result?.passageText).startsWith('[기본 요청 모드]');
 
 const setBibleAssistantLoading = (loading) => {
   const btn = $('#qtAiRequestBtn');
   const qtInput = $('#qtScriptureInput') || $('#qtForm input[name="scripture"]');
   const loadingEl = $('#bibleAssistantLoading');
+  if (loadingEl) loadingEl.hidden = !loading;
   if (!btn) return;
   btn.disabled = loading;
   btn.textContent = loading ? 'AI 요청 중...' : 'AI 요청';
   if (qtInput) qtInput.disabled = loading;
-  if (loadingEl) loadingEl.hidden = !loading;
 };
 
 const renderBibleAssistantResult = ({
@@ -792,58 +814,87 @@ const registerDesktopShutdown = () => {
 };
 
 const requestBibleAssistant = async (passage) => {
-  const { provider, bibleVersion, apiKey } = getActiveAiConfig();
-  const providerLabelMap = {
-    openai: 'ChatGPT',
-    claude: 'Claude',
-    gemini: 'Gemini',
-    grok: 'Grok',
-    perplexity: 'Perplexity',
+  const { provider, bibleVersion, keyMap } = getActiveAiConfig();
+  const attemptProviders = buildAiAttemptProviders(provider, keyMap);
+  let firstError = null;
+  let deferredBasicResult = null;
+
+  const requestByProvider = async (providerName, apiKey) => {
+    let response;
+    try {
+      response = await fetch('/__holyflow_ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          provider: providerName,
+          bibleVersion,
+          passage,
+          apiKey,
+        }),
+      });
+    } catch {
+      throw new Error('AI 서버 연결에 실패했습니다. 최신 EXE/APP 버전으로 실행해주세요.');
+    }
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('AI 기능은 최신 데스크톱(EXE/APP) 실행기에서 지원됩니다.');
+      }
+      throw new Error(payload?.error || 'AI 응답 생성에 실패했습니다.');
+    }
+
+    const result = payload?.result;
+    if (!result || typeof result !== 'object') {
+      throw new Error('AI 응답 형식이 올바르지 않습니다.');
+    }
+
+    return result;
   };
 
-  let response;
-  try {
-    response = await fetch('/__holyflow_ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        provider,
+  for (let index = 0; index < attemptProviders.length; index += 1) {
+    const providerName = attemptProviders[index];
+    const apiKey = asSafeString(keyMap[providerName]);
+    try {
+      const result = await requestByProvider(providerName, apiKey);
+      const moreKeyedProviders = attemptProviders
+        .slice(index + 1)
+        .some((nextProvider) => Boolean(asSafeString(keyMap[nextProvider])));
+      if (isBasicModePayload(result) && apiKey && moreKeyedProviders) {
+        deferredBasicResult = { providerName, result };
+        continue;
+      }
+      return {
+        provider: aiProviderLabelMap[providerName] || providerName,
         bibleVersion,
         passage,
-        apiKey,
-      }),
-    });
-  } catch {
-    throw new Error('AI 서버 연결에 실패했습니다. 최신 EXE/APP 버전으로 실행해주세요.');
-  }
-
-  let payload = null;
-  try {
-    payload = await response.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    if (response.status === 404) {
-      throw new Error('AI 기능은 최신 데스크톱(EXE/APP) 실행기에서 지원됩니다.');
+        passageText: asSafeString(result.passageText),
+        summary: asSafeString(result.summary),
+        explanation: asSafeString(result.explanation),
+      };
+    } catch (error) {
+      if (!firstError) firstError = error;
     }
-    throw new Error(payload?.error || 'AI 응답 생성에 실패했습니다.');
   }
 
-  const result = payload?.result;
-  if (!result || typeof result !== 'object') {
-    throw new Error('AI 응답 형식이 올바르지 않습니다.');
+  if (deferredBasicResult) {
+    return {
+      provider: aiProviderLabelMap[deferredBasicResult.providerName] || deferredBasicResult.providerName,
+      bibleVersion,
+      passage,
+      passageText: asSafeString(deferredBasicResult.result.passageText),
+      summary: asSafeString(deferredBasicResult.result.summary),
+      explanation: asSafeString(deferredBasicResult.result.explanation),
+    };
   }
 
-  return {
-    provider: providerLabelMap[provider],
-    bibleVersion,
-    passage,
-    passageText: asSafeString(result.passageText),
-    summary: asSafeString(result.summary),
-    explanation: asSafeString(result.explanation),
-  };
+  throw firstError || new Error('AI 응답 생성에 실패했습니다.');
 };
 
 const getBibleAssistantPassage = () => {
@@ -952,6 +1003,7 @@ document.body.addEventListener('change', async (event) => {
   if (event.target.id === 'aiProviderSelect') {
     state.ui.aiProvider = normalizeAiProvider(event.target.value);
     await persistState();
+    renderAiSettings();
     return;
   }
 

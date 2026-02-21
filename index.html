@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260221-8" />
+    <link rel="stylesheet" href="styles.css?v=20260221-9" />
   </head>
   <body>
     <div class="bg-glow bg-glow--left"></div>
@@ -116,23 +116,23 @@
                 <option value="우리말성경">우리말성경</option>
               </select>
             </label>
-            <label class="settings-field">
+            <label class="settings-field" data-ai-key-field="openai">
               <span>ChatGPT 키</span>
               <input id="openaiApiKeyInput" type="password" autocomplete="off" placeholder="sk-..." />
             </label>
-            <label class="settings-field">
+            <label class="settings-field" data-ai-key-field="claude">
               <span>Claude 키</span>
               <input id="claudeApiKeyInput" type="password" autocomplete="off" placeholder="sk-ant-..." />
             </label>
-            <label class="settings-field">
+            <label class="settings-field" data-ai-key-field="gemini">
               <span>Gemini 키</span>
               <input id="geminiApiKeyInput" type="password" autocomplete="off" placeholder="AIza..." />
             </label>
-            <label class="settings-field">
+            <label class="settings-field" data-ai-key-field="grok">
               <span>Grok 키</span>
               <input id="grokApiKeyInput" type="password" autocomplete="off" placeholder="xai-..." />
             </label>
-            <label class="settings-field">
+            <label class="settings-field" data-ai-key-field="perplexity">
               <span>Perplexity 키</span>
               <input id="perplexityApiKeyInput" type="password" autocomplete="off" placeholder="pplx-..." />
             </label>
@@ -272,6 +272,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260221-8"></script>
+    <script src="app.js?v=20260221-9"></script>
   </body>
 </html>

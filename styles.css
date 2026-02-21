@@ -588,6 +588,10 @@ button,
   margin-top: 8px;
 }
 
+.settings-field[hidden] {
+  display: none !important;
+}
+
 .settings-field span {
   color: var(--muted);
   font-size: 0.8rem;
@@ -613,6 +617,10 @@ button,
   gap: 8px;
   color: var(--muted);
   font-size: 0.86rem;
+}
+
+.assistant-loading[hidden] {
+  display: none !important;
 }
 
 .assistant-spinner {
