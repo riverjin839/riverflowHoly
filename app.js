@@ -11,6 +11,9 @@ const defaultState = {
   prayers: [],
   gratitudes: [],
   routineByDate: {},
+  ui: {
+    showRecordCalendar: true,
+  },
 };
 
 const routines = ['말씀읽기', '기도', '암송', '예배', '섬김', '찬양'];
@@ -32,6 +35,11 @@ const fromDateKeyToLabel = (dateKey) => {
   });
 };
 
+const toDateDisplayLabel = (dateKey) => {
+  const [y, m, d] = dateKey.split('-');
+  return `${y}. ${m}. ${d}.`;
+};
+
 const cloneDefault = () => JSON.parse(JSON.stringify(defaultState));
 const $ = (selector) => document.querySelector(selector);
 const textEncoder = new TextEncoder();
@@ -43,6 +51,7 @@ let selectedDate = toDateKey();
 let db;
 let deferredPrompt;
 let calendarCursor = new Date();
+let datePopoverOpen = false;
 
 const supportsSecureBackup = () => Boolean(window.crypto?.subtle && window.crypto?.getRandomValues);
 const supportsCompression = () => typeof CompressionStream !== 'undefined';
@@ -109,10 +118,12 @@ const deriveBackupKey = async (password, salt, iterations) => {
   );
 };
 
-const sanitizeImportedState = (parsed) => {
+const normalizeState = (parsed) => {
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('백업 형식이 올바르지 않습니다.');
+    return cloneDefault();
   }
+
+  const rawUi = parsed.ui && typeof parsed.ui === 'object' && !Array.isArray(parsed.ui) ? parsed.ui : {};
 
   return {
     ...cloneDefault(),
@@ -124,7 +135,17 @@ const sanitizeImportedState = (parsed) => {
       parsed.routineByDate && typeof parsed.routineByDate === 'object' && !Array.isArray(parsed.routineByDate)
         ? parsed.routineByDate
         : {},
+    ui: {
+      showRecordCalendar: rawUi.showRecordCalendar !== false,
+    },
   };
+};
+
+const sanitizeImportedState = (parsed) => {
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('백업 형식이 올바르지 않습니다.');
+  }
+  return normalizeState(parsed);
 };
 
 const downloadFile = (content, filename, type = 'application/json') => {
@@ -219,7 +240,7 @@ const saveFallback = (data) => localStorage.setItem(LOCAL_FALLBACK_KEY, JSON.str
 
 const loadFallback = () => {
   try {
-    return JSON.parse(localStorage.getItem(LOCAL_FALLBACK_KEY)) || cloneDefault();
+    return normalizeState(JSON.parse(localStorage.getItem(LOCAL_FALLBACK_KEY)));
   } catch {
     return cloneDefault();
   }
@@ -254,7 +275,7 @@ const getRecordedDateKeySet = () => {
 
 const loadState = async () => {
   if (!openDB) {
-    state = loadFallback();
+    state = normalizeState(loadFallback());
     return;
   }
 
@@ -266,9 +287,9 @@ const loadState = async () => {
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
-    state = value || loadFallback() || cloneDefault();
+    state = normalizeState(value || loadFallback());
   } catch {
-    state = loadFallback();
+    state = normalizeState(loadFallback());
   }
 };
 
@@ -290,43 +311,59 @@ const ensureRoutineForSelectedDate = () => {
   }
 };
 
-const renderDateHeader = () => {
-  $('#datePicker').value = selectedDate;
-  $('#todayLabel').textContent = fromDateKeyToLabel(selectedDate);
+const setDatePopoverOpen = (isOpen) => {
+  const popover = $('#datePickerPopover');
+  const toggle = $('#datePickerToggle');
+  if (!popover || !toggle) return;
+  popover.hidden = !isOpen;
+  toggle.setAttribute('aria-expanded', String(isOpen));
+  datePopoverOpen = isOpen;
 };
 
-const renderCalendar = () => {
-  const monthLabelEl = $('#calendarMonthLabel');
-  const calendarGridEl = $('#calendarGrid');
-  if (!monthLabelEl || !calendarGridEl) return;
+const renderDateHeader = () => {
+  const datePicker = $('#datePicker');
+  const datePickerLabel = $('#datePickerLabel');
+  const todayLabel = $('#todayLabel');
+  if (datePicker) datePicker.value = selectedDate;
+  if (datePickerLabel) datePickerLabel.textContent = toDateDisplayLabel(selectedDate);
+  if (todayLabel) todayLabel.textContent = fromDateKeyToLabel(selectedDate);
+};
 
-  const year = calendarCursor.getFullYear();
-  const month = calendarCursor.getMonth();
+const renderDisplaySettings = () => {
+  const showRecordCalendar = state?.ui?.showRecordCalendar !== false;
+  const toggle = $('#toggleRecordCalendar');
+  const card = $('#recordCalendarCard');
+  if (toggle) toggle.checked = showRecordCalendar;
+  if (card) card.hidden = !showRecordCalendar;
+};
+
+const buildCalendarCells = ({ year, month, recordedDateSet, todayKey, compact = false }) => {
   const firstDay = new Date(year, month, 1);
   const startWeekday = firstDay.getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const todayKey = toDateKey();
-  const recordedDateSet = getRecordedDateKeySet();
-
-  monthLabelEl.textContent = `${year}년 ${month + 1}월`;
 
   let cells = '';
   for (let index = 0; index < 42; index += 1) {
     const dayNumber = index - startWeekday + 1;
     if (dayNumber < 1 || dayNumber > daysInMonth) {
-      cells += `<div class="calendar-day calendar-day--empty" aria-hidden="true"></div>`;
+      const emptyClass = compact ? 'calendar-day--compact' : '';
+      cells += `<div class="calendar-day calendar-day--empty ${emptyClass}" aria-hidden="true"></div>`;
       continue;
     }
 
     const cellDateKey = toDateKey(new Date(year, month, dayNumber));
-    const selectedClass = cellDateKey === selectedDate ? 'calendar-day--selected' : '';
-    const todayClass = cellDateKey === todayKey ? 'calendar-day--today' : '';
-    const heart = recordedDateSet.has(cellDateKey) ? '<span class="calendar-heart" aria-hidden="true">♥</span>' : '';
+    const classes = ['calendar-day'];
+    if (compact) classes.push('calendar-day--compact');
+    if (cellDateKey === selectedDate) classes.push('calendar-day--selected');
+    if (cellDateKey === todayKey) classes.push('calendar-day--today');
+    const heartClass = compact ? 'calendar-heart calendar-heart--compact' : 'calendar-heart';
+    const heart = recordedDateSet.has(cellDateKey) ? `<span class="${heartClass}" aria-hidden="true">♥</span>` : '';
+
     cells += `
       <button
         type="button"
-        class="calendar-day ${selectedClass} ${todayClass}"
-        data-calendar-date="${cellDateKey}"
+        class="${classes.join(' ')}"
+        data-date-select="${cellDateKey}"
         aria-label="${cellDateKey} 기록 보기"
       >
         <span class="calendar-day-num">${dayNumber}</span>
@@ -334,8 +371,40 @@ const renderCalendar = () => {
       </button>
     `;
   }
+  return cells;
+};
 
-  calendarGridEl.innerHTML = cells;
+const renderCalendar = () => {
+  const year = calendarCursor.getFullYear();
+  const month = calendarCursor.getMonth();
+  const todayKey = toDateKey();
+  const recordedDateSet = getRecordedDateKeySet();
+  const monthLabel = `${year}년 ${month + 1}월`;
+
+  const monthLabelEl = $('#calendarMonthLabel');
+  const calendarGridEl = $('#calendarGrid');
+  if (monthLabelEl) monthLabelEl.textContent = monthLabel;
+  if (calendarGridEl) {
+    calendarGridEl.innerHTML = buildCalendarCells({
+      year,
+      month,
+      recordedDateSet,
+      todayKey,
+    });
+  }
+
+  const popoverMonthLabelEl = $('#datePopoverMonthLabel');
+  const popoverGridEl = $('#datePopoverGrid');
+  if (popoverMonthLabelEl) popoverMonthLabelEl.textContent = monthLabel;
+  if (popoverGridEl) {
+    popoverGridEl.innerHTML = buildCalendarCells({
+      year,
+      month,
+      recordedDateSet,
+      todayKey,
+      compact: true,
+    });
+  }
 };
 
 const renderStats = () => {
@@ -435,6 +504,7 @@ const renderHistory = () => {
 
 const rerender = async () => {
   renderDateHeader();
+  renderDisplaySettings();
   renderCalendar();
   renderStats();
   renderPrayers();
@@ -559,6 +629,12 @@ document.body.addEventListener('change', async (event) => {
     return;
   }
 
+  if (event.target.id === 'toggleRecordCalendar') {
+    state.ui.showRecordCalendar = event.target.checked;
+    await rerender();
+    return;
+  }
+
   if (prayerCheck) {
     const prayer = findById(state.prayers, prayerCheck);
     if (prayer) prayer.answered = event.target.checked;
@@ -567,24 +643,60 @@ document.body.addEventListener('change', async (event) => {
 });
 
 document.body.addEventListener('click', async (event) => {
-  const calendarDateBtn = event.target.closest('[data-calendar-date]');
+  const datePickerToggleBtn = $('#datePickerToggle');
+  const datePickerPopover = $('#datePickerPopover');
+
+  if (datePopoverOpen && datePickerToggleBtn && datePickerPopover) {
+    const clickedToggle = datePickerToggleBtn.contains(event.target);
+    const clickedInsidePopover = datePickerPopover.contains(event.target);
+    if (!clickedToggle && !clickedInsidePopover) {
+      setDatePopoverOpen(false);
+    }
+  }
+
+  if (event.target.closest('#datePickerToggle')) {
+    if (!datePopoverOpen) {
+      setCalendarCursorFromDateKey(selectedDate);
+      renderCalendar();
+    }
+    setDatePopoverOpen(!datePopoverOpen);
+    return;
+  }
+
+  if (event.target.id === 'datePopoverCloseBtn') {
+    setDatePopoverOpen(false);
+    return;
+  }
+
+  if (event.target.id === 'datePopoverTodayBtn') {
+    selectedDate = toDateKey();
+    setCalendarCursorFromDateKey(selectedDate);
+    setDatePopoverOpen(false);
+    await rerender();
+    return;
+  }
+
+  const calendarDateBtn = event.target.closest('[data-date-select]');
   if (calendarDateBtn) {
-    const dateKey = calendarDateBtn.dataset.calendarDate;
+    const dateKey = calendarDateBtn.dataset.dateSelect;
     if (dateKey) {
       selectedDate = dateKey;
       setCalendarCursorFromDateKey(dateKey);
+      if (datePickerPopover?.contains(calendarDateBtn)) {
+        setDatePopoverOpen(false);
+      }
       await rerender();
     }
     return;
   }
 
-  if (event.target.id === 'calendarPrevMonthBtn') {
+  if (event.target.id === 'calendarPrevMonthBtn' || event.target.id === 'datePopoverPrevMonthBtn') {
     calendarCursor.setMonth(calendarCursor.getMonth() - 1, 1);
     renderCalendar();
     return;
   }
 
-  if (event.target.id === 'calendarNextMonthBtn') {
+  if (event.target.id === 'calendarNextMonthBtn' || event.target.id === 'datePopoverNextMonthBtn') {
     calendarCursor.setMonth(calendarCursor.getMonth() + 1, 1);
     renderCalendar();
     return;
@@ -683,6 +795,12 @@ document.body.addEventListener('click', async (event) => {
 
     downloadFile(JSON.stringify(state, null, 2), `holy-flow-backup-${toDateKey()}.json`);
   }
+});
+
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape') return;
+  if (!datePopoverOpen) return;
+  setDatePopoverOpen(false);
 });
 
 $('#datePicker').addEventListener('change', async (event) => {

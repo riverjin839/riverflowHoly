@@ -28,8 +28,38 @@
       </div>
       <div class="date-nav">
         <button type="button" id="prevDateBtn" class="ghost">←</button>
-        <input type="date" id="datePicker" />
+        <input type="date" id="datePicker" class="visually-hidden" tabindex="-1" aria-hidden="true" />
+        <button
+          type="button"
+          id="datePickerToggle"
+          class="ghost date-picker-toggle"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+        >
+          <span id="datePickerLabel"></span>
+        </button>
         <button type="button" id="nextDateBtn" class="ghost">→</button>
+        <div id="datePickerPopover" class="date-popover" role="dialog" aria-label="날짜 선택 달력" hidden>
+          <div class="calendar-toolbar calendar-toolbar--compact">
+            <button type="button" id="datePopoverPrevMonthBtn" class="ghost">↑</button>
+            <strong id="datePopoverMonthLabel"></strong>
+            <button type="button" id="datePopoverNextMonthBtn" class="ghost">↓</button>
+          </div>
+          <div class="calendar-weekdays calendar-weekdays--compact" aria-hidden="true">
+            <span>일</span>
+            <span>월</span>
+            <span>화</span>
+            <span>수</span>
+            <span>목</span>
+            <span>금</span>
+            <span>토</span>
+          </div>
+          <div id="datePopoverGrid" class="calendar-grid calendar-grid--compact"></div>
+          <div class="date-popover-actions">
+            <button type="button" id="datePopoverTodayBtn" class="ghost">오늘</button>
+            <button type="button" id="datePopoverCloseBtn" class="ghost">닫기</button>
+          </div>
+        </div>
       </div>
       <div class="top-actions">
         <button type="button" id="installBtn" class="ghost" hidden>앱 설치</button>
@@ -45,7 +75,18 @@
         <div id="stats" class="stats"></div>
       </section>
 
-      <section class="card card--hero">
+      <section class="card">
+        <div class="section-title">
+          <h3>설정</h3>
+          <span>화면 표시 옵션</span>
+        </div>
+        <label class="setting-toggle">
+          <input type="checkbox" id="toggleRecordCalendar" />
+          <span>기록 달력 카드 표시</span>
+        </label>
+      </section>
+
+      <section class="card card--hero" id="recordCalendarCard">
         <div class="section-title">
           <h3>기록 달력</h3>
           <span>기록된 날짜는 하트로 표시됩니다</span>

@@ -75,6 +75,52 @@ h1 {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: relative;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+.date-picker-toggle {
+  min-width: 146px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.date-picker-toggle::after {
+  content: '📅';
+  font-size: 0.85rem;
+}
+
+.date-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 292px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: rgba(10, 23, 52, 0.95);
+  box-shadow: 0 16px 36px rgba(3, 6, 18, 0.6);
+  z-index: 30;
+}
+
+.date-popover-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .top-actions {
@@ -149,6 +195,13 @@ button,
   font-size: 0.95rem;
 }
 
+input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: #9fd3ff;
+}
+
 select option {
   color: #0a1636;
   background: #ffffff;
@@ -180,6 +233,10 @@ button,
   margin-bottom: 10px;
 }
 
+.calendar-toolbar--compact {
+  margin-bottom: 8px;
+}
+
 #calendarMonthLabel {
   min-width: 140px;
   text-align: center;
@@ -195,10 +252,20 @@ button,
   text-align: center;
 }
 
+.calendar-weekdays--compact {
+  gap: 4px;
+  margin-bottom: 5px;
+  font-size: 0.72rem;
+}
+
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 6px;
+}
+
+.calendar-grid--compact {
+  gap: 4px;
 }
 
 .calendar-day {
@@ -213,6 +280,13 @@ button,
   justify-content: center;
   gap: 4px;
   padding: 6px 4px;
+}
+
+.calendar-day--compact {
+  min-height: 42px;
+  border-radius: 8px;
+  gap: 2px;
+  padding: 5px 2px;
 }
 
 .calendar-day:hover {
@@ -242,6 +316,10 @@ button,
   color: #ff8ca8;
   font-size: 0.8rem;
   line-height: 1;
+}
+
+.calendar-heart--compact {
+  font-size: 0.66rem;
 }
 
 ::placeholder {
@@ -373,9 +451,28 @@ button,
   margin-bottom: 0;
 }
 
+.setting-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.setting-toggle input {
+  width: 18px;
+  height: 18px;
+}
+
 @media (max-width: 860px) {
   .layout {
     grid-template-columns: 1fr;
+  }
+
+  .date-popover {
+    width: min(92vw, 292px);
   }
 
   .inline-form,
