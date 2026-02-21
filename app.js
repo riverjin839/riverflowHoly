@@ -5,7 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-6';
+const APP_BUNDLE_VERSION = '20260221-7';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 
 const defaultState = {
@@ -14,7 +14,7 @@ const defaultState = {
   gratitudes: [],
   routineByDate: {},
   ui: {
-    settingsVersion: 4,
+    settingsVersion: 5,
     showRecordCalendar: false,
     showQtHistory: false,
     prayerCategories: defaultPrayerCategories,
@@ -23,6 +23,8 @@ const defaultState = {
     openaiApiKey: '',
     claudeApiKey: '',
     geminiApiKey: '',
+    grokApiKey: '',
+    perplexityApiKey: '',
   },
 };
 
@@ -78,7 +80,8 @@ const normalizeCategoryList = (categories) => {
   return unique.length ? unique : [...defaultPrayerCategories];
 };
 
-const normalizeAiProvider = (provider) => (['openai', 'claude', 'gemini'].includes(provider) ? provider : 'openai');
+const normalizeAiProvider = (provider) =>
+  (['openai', 'claude', 'gemini', 'grok', 'perplexity'].includes(provider) ? provider : 'openai');
 
 const normalizeBibleVersion = (version) => (['개역개정', '우리말성경'].includes(version) ? version : '개역개정');
 
@@ -189,7 +192,7 @@ const normalizeState = (parsed) => {
         ? parsed.routineByDate
         : {},
     ui: {
-      settingsVersion: 4,
+      settingsVersion: 5,
       showRecordCalendar: hasSettingsV3 ? rawUi.showRecordCalendar === true : false,
       showQtHistory: hasSettingsV3 ? rawUi.showQtHistory === true : false,
       prayerCategories: normalizeCategoryList(rawUi.prayerCategories),
@@ -198,6 +201,8 @@ const normalizeState = (parsed) => {
       openaiApiKey: asSafeString(rawUi.openaiApiKey),
       claudeApiKey: asSafeString(rawUi.claudeApiKey),
       geminiApiKey: asSafeString(rawUi.geminiApiKey),
+      grokApiKey: asSafeString(rawUi.grokApiKey),
+      perplexityApiKey: asSafeString(rawUi.perplexityApiKey),
     },
   };
 };
@@ -439,6 +444,8 @@ const renderAiSettings = () => {
   const openaiInput = $('#openaiApiKeyInput');
   const claudeInput = $('#claudeApiKeyInput');
   const geminiInput = $('#geminiApiKeyInput');
+  const grokInput = $('#grokApiKeyInput');
+  const perplexityInput = $('#perplexityApiKeyInput');
   const uiState = state?.ui || {};
 
   if (providerSelect) providerSelect.value = normalizeAiProvider(uiState.aiProvider);
@@ -446,6 +453,8 @@ const renderAiSettings = () => {
   if (openaiInput) openaiInput.value = asSafeString(uiState.openaiApiKey);
   if (claudeInput) claudeInput.value = asSafeString(uiState.claudeApiKey);
   if (geminiInput) geminiInput.value = asSafeString(uiState.geminiApiKey);
+  if (grokInput) grokInput.value = asSafeString(uiState.grokApiKey);
+  if (perplexityInput) perplexityInput.value = asSafeString(uiState.perplexityApiKey);
 };
 
 const getActiveAiConfig = () => {
@@ -455,6 +464,8 @@ const getActiveAiConfig = () => {
     openai: asSafeString(state?.ui?.openaiApiKey),
     claude: asSafeString(state?.ui?.claudeApiKey),
     gemini: asSafeString(state?.ui?.geminiApiKey),
+    grok: asSafeString(state?.ui?.grokApiKey),
+    perplexity: asSafeString(state?.ui?.perplexityApiKey),
   };
   return { provider, bibleVersion, apiKey: keyMap[provider] || '' };
 };
@@ -494,7 +505,8 @@ const renderBibleAssistantResult = ({
   }
 
   if (!passageText && !summary && !explanation) {
-    container.innerHTML = '<p class="help-text">설정에서 API 키/번역을 선택한 뒤 QT 일기장의 오늘의 본문을 입력하세요.</p>';
+    container.innerHTML =
+      '<p class="help-text">QT 일기장의 오늘의 본문을 입력하세요. API 키가 없으면 기본 요청 모드로 먼저 시도합니다.</p>';
     return;
   }
 
@@ -785,11 +797,9 @@ const requestBibleAssistant = async (passage) => {
     openai: 'ChatGPT',
     claude: 'Claude',
     gemini: 'Gemini',
+    grok: 'Grok',
+    perplexity: 'Perplexity',
   };
-
-  if (!apiKey) {
-    throw new Error(`${providerLabelMap[provider]} API 키를 설정에서 입력해주세요.`);
-  }
 
   let response;
   try {
@@ -966,6 +976,18 @@ document.body.addEventListener('change', async (event) => {
 
   if (event.target.id === 'geminiApiKeyInput') {
     state.ui.geminiApiKey = asSafeString(event.target.value);
+    await persistState();
+    return;
+  }
+
+  if (event.target.id === 'grokApiKeyInput') {
+    state.ui.grokApiKey = asSafeString(event.target.value);
+    await persistState();
+    return;
+  }
+
+  if (event.target.id === 'perplexityApiKeyInput') {
+    state.ui.perplexityApiKey = asSafeString(event.target.value);
     await persistState();
     return;
   }

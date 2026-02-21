@@ -15,6 +15,7 @@ import ssl
 import subprocess
 import sys
 import webbrowser
+from datetime import datetime
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error as urlerror
@@ -30,6 +31,9 @@ AI_TIMEOUT_SECONDS = 45
 OPENAI_MODEL = "gpt-4.1-mini"
 CLAUDE_MODEL = "claude-3-5-haiku-latest"
 GEMINI_MODEL = "gemini-2.0-flash"
+GROK_MODEL = "grok-2-latest"
+PERPLEXITY_MODEL = "sonar"
+BASIC_REQUEST_DAILY_LIMIT = 10
 
 try:
     import certifi
@@ -48,6 +52,67 @@ def build_ssl_context() -> ssl.SSLContext:
 
 
 SSL_CONTEXT = build_ssl_context()
+
+
+def get_basic_usage_file() -> Path:
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    base = Path(local_app_data) if local_app_data else (Path.home() / ".holyflow")
+    return base / "HolyFlow" / "basic_ai_usage.json"
+
+
+def consume_basic_request_quota() -> tuple[int, int]:
+    usage_file = get_basic_usage_file()
+    today = datetime.now().strftime("%Y-%m-%d")
+    usage = {"date": today, "count": 0}
+
+    try:
+        if usage_file.exists():
+            loaded = json.loads(usage_file.read_text(encoding="utf-8"))
+            if isinstance(loaded, dict):
+                usage["date"] = str(loaded.get("date", today))
+                usage["count"] = int(loaded.get("count", 0))
+    except Exception:
+        usage = {"date": today, "count": 0}
+
+    if usage["date"] != today:
+        usage = {"date": today, "count": 0}
+
+    if usage["count"] >= BASIC_REQUEST_DAILY_LIMIT:
+        raise RuntimeError("기본 요청이 만료되었습니다. 설정에서 API 키를 입력해주세요.")
+
+    usage["count"] += 1
+
+    try:
+        usage_file.parent.mkdir(parents=True, exist_ok=True)
+        usage_file.write_text(json.dumps(usage, ensure_ascii=False), encoding="utf-8")
+    except Exception:
+        pass
+
+    return usage["count"], BASIC_REQUEST_DAILY_LIMIT
+
+
+def build_basic_fallback_result(provider: str, passage: str, bible_version: str) -> dict[str, str]:
+    used, total = consume_basic_request_quota()
+    provider_name_map = {
+        "openai": "ChatGPT",
+        "claude": "Claude",
+        "gemini": "Gemini",
+        "grok": "Grok",
+        "perplexity": "Perplexity",
+    }
+    provider_name = provider_name_map.get(provider, "AI")
+
+    return {
+        "passageText": f"[기본 요청 모드] {bible_version} · {passage}",
+        "summary": (
+            f"요청 본문은 '{passage}' 입니다. 오늘 적용할 한 가지 결단을 짧게 정리해 보세요. "
+            f"(기본 요청 사용 {used}/{total})"
+        ),
+        "explanation": (
+            f"{provider_name} 사이트 로그인과 별개로 앱 자동 연동에는 공식 API 키가 필요합니다.\n"
+            "기본 요청 모드는 간단 응답만 제공합니다. 더 정확한 본문/요약/설명은 설정에서 API 키를 입력해주세요."
+        ),
+    }
 
 
 def build_ai_prompt(passage: str, bible_version: str) -> str:
@@ -145,6 +210,9 @@ def extract_gemini_text(payload: dict) -> str:
 def request_ai_analysis(provider: str, api_key: str, passage: str, bible_version: str) -> dict[str, str]:
     prompt = build_ai_prompt(passage, bible_version)
 
+    if not api_key:
+        return build_basic_fallback_result(provider, passage, bible_version)
+
     if provider == "openai":
         payload = http_json_post(
             "https://api.openai.com/v1/chat/completions",
@@ -191,6 +259,36 @@ def request_ai_analysis(provider: str, api_key: str, passage: str, bible_version
             },
         )
         return parse_ai_json(extract_gemini_text(payload))
+
+    if provider == "grok":
+        payload = http_json_post(
+            "https://api.x.ai/v1/chat/completions",
+            {"Authorization": f"Bearer {api_key}"},
+            {
+                "model": GROK_MODEL,
+                "temperature": 0.2,
+                "messages": [
+                    {"role": "system", "content": "You are a Korean Bible assistant. Return JSON only."},
+                    {"role": "user", "content": prompt},
+                ],
+            },
+        )
+        return parse_ai_json(extract_openai_text(payload))
+
+    if provider == "perplexity":
+        payload = http_json_post(
+            "https://api.perplexity.ai/chat/completions",
+            {"Authorization": f"Bearer {api_key}"},
+            {
+                "model": PERPLEXITY_MODEL,
+                "temperature": 0.2,
+                "messages": [
+                    {"role": "system", "content": "You are a Korean Bible assistant. Return JSON only."},
+                    {"role": "user", "content": prompt},
+                ],
+            },
+        )
+        return parse_ai_json(extract_openai_text(payload))
 
     raise ValueError("지원하지 않는 AI 제공자입니다.")
 
@@ -257,10 +355,8 @@ class HolyFlowHandler(SimpleHTTPRequestHandler):
             passage = str(payload.get("passage", "")).strip()
             bible_version = str(payload.get("bibleVersion", "개역개정")).strip()
 
-            if provider not in {"openai", "claude", "gemini"}:
+            if provider not in {"openai", "claude", "gemini", "grok", "perplexity"}:
                 raise ValueError("AI 제공자를 선택해주세요.")
-            if not api_key:
-                raise ValueError("API 키가 비어 있습니다.")
             if not passage:
                 raise ValueError("본문을 입력해주세요.")
             if bible_version not in {"개역개정", "우리말성경"}:
@@ -401,7 +497,7 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-6"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-7"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 

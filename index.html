@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260221-6" />
+    <link rel="stylesheet" href="styles.css?v=20260221-7" />
   </head>
   <body>
     <div class="bg-glow bg-glow--left"></div>
@@ -105,6 +105,8 @@
                 <option value="openai">ChatGPT</option>
                 <option value="claude">Claude</option>
                 <option value="gemini">Gemini</option>
+                <option value="grok">Grok</option>
+                <option value="perplexity">Perplexity</option>
               </select>
             </label>
             <label class="settings-field">
@@ -126,6 +128,15 @@
               <span>Gemini 키</span>
               <input id="geminiApiKeyInput" type="password" autocomplete="off" placeholder="AIza..." />
             </label>
+            <label class="settings-field">
+              <span>Grok 키</span>
+              <input id="grokApiKeyInput" type="password" autocomplete="off" placeholder="xai-..." />
+            </label>
+            <label class="settings-field">
+              <span>Perplexity 키</span>
+              <input id="perplexityApiKeyInput" type="password" autocomplete="off" placeholder="pplx-..." />
+            </label>
+            <p class="help-text">키가 비어 있으면 기본 요청 모드로 먼저 시도하고, 만료되면 키 입력을 안내합니다.</p>
           </div>
         </div>
         <p id="todayLabel" class="today"></p>
@@ -190,7 +201,7 @@
           <span>분석 중입니다...</span>
         </div>
         <div id="bibleAssistantResult" class="assistant-result">
-          <p class="help-text">설정에서 API 키/번역을 선택한 뒤 QT 일기장의 오늘의 본문을 입력하세요.</p>
+          <p class="help-text">QT 일기장의 오늘의 본문을 입력하세요. API 키가 없으면 기본 요청 모드로 먼저 시도합니다.</p>
         </div>
       </section>
 
@@ -261,6 +272,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260221-6"></script>
+    <script src="app.js?v=20260221-7"></script>
   </body>
 </html>
