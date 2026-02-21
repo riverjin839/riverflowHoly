@@ -5,7 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-3';
+const APP_BUNDLE_VERSION = '20260221-4';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 
 const defaultState = {
@@ -14,10 +14,15 @@ const defaultState = {
   gratitudes: [],
   routineByDate: {},
   ui: {
-    settingsVersion: 3,
+    settingsVersion: 4,
     showRecordCalendar: false,
     showQtHistory: false,
     prayerCategories: defaultPrayerCategories,
+    aiProvider: 'openai',
+    bibleVersion: '개역개정',
+    openaiApiKey: '',
+    claudeApiKey: '',
+    geminiApiKey: '',
   },
 };
 
@@ -72,6 +77,14 @@ const normalizeCategoryList = (categories) => {
 
   return unique.length ? unique : [...defaultPrayerCategories];
 };
+
+const normalizeAiProvider = (provider) => (['openai', 'claude', 'gemini'].includes(provider) ? provider : 'openai');
+
+const normalizeBibleVersion = (version) => (['개역개정', '우리말성경'].includes(version) ? version : '개역개정');
+
+const asSafeString = (value) => (typeof value === 'string' ? value.trim() : '');
+
+const toHtmlMultiline = (value = '') => escapeHtml(value).replace(/\n/g, '<br />');
 
 const cloneDefault = () => JSON.parse(JSON.stringify(defaultState));
 const $ = (selector) => document.querySelector(selector);
@@ -176,10 +189,15 @@ const normalizeState = (parsed) => {
         ? parsed.routineByDate
         : {},
     ui: {
-      settingsVersion: 3,
+      settingsVersion: 4,
       showRecordCalendar: hasSettingsV3 ? rawUi.showRecordCalendar === true : false,
       showQtHistory: hasSettingsV3 ? rawUi.showQtHistory === true : false,
       prayerCategories: normalizeCategoryList(rawUi.prayerCategories),
+      aiProvider: normalizeAiProvider(rawUi.aiProvider),
+      bibleVersion: normalizeBibleVersion(rawUi.bibleVersion),
+      openaiApiKey: asSafeString(rawUi.openaiApiKey),
+      claudeApiKey: asSafeString(rawUi.claudeApiKey),
+      geminiApiKey: asSafeString(rawUi.geminiApiKey),
     },
   };
 };
@@ -415,6 +433,66 @@ const renderPrayerCategorySettings = () => {
     .join('');
 };
 
+const renderAiSettings = () => {
+  const providerSelect = $('#aiProviderSelect');
+  const bibleVersionSelect = $('#bibleVersionSelect');
+  const openaiInput = $('#openaiApiKeyInput');
+  const claudeInput = $('#claudeApiKeyInput');
+  const geminiInput = $('#geminiApiKeyInput');
+  const uiState = state?.ui || {};
+
+  if (providerSelect) providerSelect.value = normalizeAiProvider(uiState.aiProvider);
+  if (bibleVersionSelect) bibleVersionSelect.value = normalizeBibleVersion(uiState.bibleVersion);
+  if (openaiInput) openaiInput.value = asSafeString(uiState.openaiApiKey);
+  if (claudeInput) claudeInput.value = asSafeString(uiState.claudeApiKey);
+  if (geminiInput) geminiInput.value = asSafeString(uiState.geminiApiKey);
+};
+
+const getActiveAiConfig = () => {
+  const provider = normalizeAiProvider(state?.ui?.aiProvider);
+  const bibleVersion = normalizeBibleVersion(state?.ui?.bibleVersion);
+  const keyMap = {
+    openai: asSafeString(state?.ui?.openaiApiKey),
+    claude: asSafeString(state?.ui?.claudeApiKey),
+    gemini: asSafeString(state?.ui?.geminiApiKey),
+  };
+  return { provider, bibleVersion, apiKey: keyMap[provider] || '' };
+};
+
+const setBibleAssistantLoading = (loading) => {
+  const btn = $('#bibleAssistantSubmitBtn');
+  if (!btn) return;
+  btn.disabled = loading;
+  btn.textContent = loading ? '불러오는 중...' : '불러오기';
+};
+
+const renderBibleAssistantResult = ({ passage, bibleVersion, provider, passageText, summary, explanation, error } = {}) => {
+  const container = $('#bibleAssistantResult');
+  if (!container) return;
+
+  if (error) {
+    container.innerHTML = `<p class="help-text error-text">${toHtmlMultiline(error)}</p>`;
+    return;
+  }
+
+  if (!passageText && !summary && !explanation) {
+    container.innerHTML = '<p class="help-text">설정에서 API 키/번역을 선택한 뒤 본문을 입력하세요.</p>';
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="assistant-block">
+      <p class="assistant-meta">${escapeHtml(provider || '')} · ${escapeHtml(bibleVersion || '')} · ${escapeHtml(passage || '')}</p>
+      <h4>본문</h4>
+      <p>${toHtmlMultiline(passageText || '')}</p>
+      <h4>요약</h4>
+      <p>${toHtmlMultiline(summary || '')}</p>
+      <h4>설명</h4>
+      <p>${toHtmlMultiline(explanation || '')}</p>
+    </div>
+  `;
+};
+
 const renderDisplaySettings = () => {
   const showRecordCalendar = state?.ui?.showRecordCalendar === true;
   const showQtHistory = state?.ui?.showQtHistory === true;
@@ -432,6 +510,7 @@ const renderDisplaySettings = () => {
 
   renderPrayerCategorySettings();
   renderPrayerCategoryOptions();
+  renderAiSettings();
 };
 
 const buildCalendarCells = ({ year, month, recordedDateSet, todayKey, compact = false }) => {
@@ -681,6 +760,82 @@ const registerDesktopShutdown = () => {
     window.close();
   });
 };
+
+const requestBibleAssistant = async (passage) => {
+  const { provider, bibleVersion, apiKey } = getActiveAiConfig();
+  const providerLabelMap = {
+    openai: 'ChatGPT',
+    claude: 'Claude',
+    gemini: 'Gemini',
+  };
+
+  if (!apiKey) {
+    throw new Error(`${providerLabelMap[provider]} API 키를 설정에서 입력해주세요.`);
+  }
+
+  let response;
+  try {
+    response = await fetch('/__holyflow_ai', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        provider,
+        bibleVersion,
+        passage,
+        apiKey,
+      }),
+    });
+  } catch {
+    throw new Error('AI 서버 연결에 실패했습니다. 최신 EXE/APP 버전으로 실행해주세요.');
+  }
+
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('AI 기능은 최신 데스크톱(EXE/APP) 실행기에서 지원됩니다.');
+    }
+    throw new Error(payload?.error || 'AI 응답 생성에 실패했습니다.');
+  }
+
+  const result = payload?.result;
+  if (!result || typeof result !== 'object') {
+    throw new Error('AI 응답 형식이 올바르지 않습니다.');
+  }
+
+  return {
+    provider: providerLabelMap[provider],
+    bibleVersion,
+    passage,
+    passageText: asSafeString(result.passageText),
+    summary: asSafeString(result.summary),
+    explanation: asSafeString(result.explanation),
+  };
+};
+
+$('#bibleAssistantForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const passage = asSafeString(new FormData(event.currentTarget).get('passage'));
+  if (!passage) return;
+
+  setBibleAssistantLoading(true);
+  renderBibleAssistantResult({ error: 'AI 분석 중입니다...' });
+
+  try {
+    const result = await requestBibleAssistant(passage);
+    renderBibleAssistantResult(result);
+  } catch (error) {
+    renderBibleAssistantResult({ error: error?.message || 'AI 응답 생성에 실패했습니다.' });
+  } finally {
+    setBibleAssistantLoading(false);
+  }
+});
+
 $('#qtForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   const data = new FormData(event.currentTarget);
@@ -746,6 +901,36 @@ document.body.addEventListener('change', async (event) => {
   if (event.target.id === 'toggleQtHistory') {
     state.ui.showQtHistory = event.target.checked;
     await rerender();
+    return;
+  }
+
+  if (event.target.id === 'aiProviderSelect') {
+    state.ui.aiProvider = normalizeAiProvider(event.target.value);
+    await persistState();
+    return;
+  }
+
+  if (event.target.id === 'bibleVersionSelect') {
+    state.ui.bibleVersion = normalizeBibleVersion(event.target.value);
+    await persistState();
+    return;
+  }
+
+  if (event.target.id === 'openaiApiKeyInput') {
+    state.ui.openaiApiKey = asSafeString(event.target.value);
+    await persistState();
+    return;
+  }
+
+  if (event.target.id === 'claudeApiKeyInput') {
+    state.ui.claudeApiKey = asSafeString(event.target.value);
+    await persistState();
+    return;
+  }
+
+  if (event.target.id === 'geminiApiKeyInput') {
+    state.ui.geminiApiKey = asSafeString(event.target.value);
+    await persistState();
     return;
   }
 

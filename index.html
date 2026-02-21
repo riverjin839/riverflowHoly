@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260221-3" />
+    <link rel="stylesheet" href="styles.css?v=20260221-4" />
   </head>
   <body>
     <div class="bg-glow bg-glow--left"></div>
@@ -97,19 +97,49 @@
               <button type="button" id="addPrayerCategoryBtn">추가</button>
             </div>
           </div>
+          <div class="settings-group">
+            <p class="settings-label">말씀 도우미 설정</p>
+            <label class="settings-field">
+              <span>AI 제공자</span>
+              <select id="aiProviderSelect">
+                <option value="openai">ChatGPT</option>
+                <option value="claude">Claude</option>
+                <option value="gemini">Gemini</option>
+              </select>
+            </label>
+            <label class="settings-field">
+              <span>성경 번역</span>
+              <select id="bibleVersionSelect">
+                <option value="개역개정">개역개정</option>
+                <option value="우리말성경">우리말성경</option>
+              </select>
+            </label>
+            <label class="settings-field">
+              <span>ChatGPT 키</span>
+              <input id="openaiApiKeyInput" type="password" autocomplete="off" placeholder="sk-..." />
+            </label>
+            <label class="settings-field">
+              <span>Claude 키</span>
+              <input id="claudeApiKeyInput" type="password" autocomplete="off" placeholder="sk-ant-..." />
+            </label>
+            <label class="settings-field">
+              <span>Gemini 키</span>
+              <input id="geminiApiKeyInput" type="password" autocomplete="off" placeholder="AIza..." />
+            </label>
+          </div>
         </div>
         <p id="todayLabel" class="today"></p>
       </div>
     </header>
 
     <main class="layout">
-      <section class="card daily-summary-card" id="dailySummaryCard">
+      <section class="card daily-summary-card daily-summary-card--wide" id="dailySummaryCard">
         <h2>선택한 날짜의 경건 기록</h2>
         <p>날짜를 이동하며 QT/기도/감사/루틴을 저장·수정·삭제할 수 있습니다.</p>
         <div id="stats" class="stats"></div>
       </section>
 
-      <section class="card record-calendar-card" id="recordCalendarCard">
+      <section class="card record-calendar-card" id="recordCalendarCard" hidden>
         <div class="section-title">
           <h3>기록 달력</h3>
           <span>기록된 날짜는 하트로 표시됩니다</span>
@@ -148,6 +178,20 @@
 
       <section class="card">
         <div class="section-title">
+          <h3>말씀 도우미</h3>
+          <span>본문 출력 · 요약 · 설명</span>
+        </div>
+        <form id="bibleAssistantForm" class="simple-inline">
+          <input id="biblePassageInput" name="passage" placeholder="본문 입력 (예: 요한복음 3:16-17)" required />
+          <button type="submit" id="bibleAssistantSubmitBtn">불러오기</button>
+        </form>
+        <div id="bibleAssistantResult" class="assistant-result">
+          <p class="help-text">설정에서 API 키/번역을 선택한 뒤 본문을 입력하세요.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-title">
           <h3>기도 제목</h3>
           <span>응답 체크 · 수정 · 삭제</span>
         </div>
@@ -179,7 +223,7 @@
         <div id="routineList" class="routine-grid"></div>
       </section>
 
-      <section class="card" id="qtHistoryCard">
+      <section class="card" id="qtHistoryCard" hidden>
         <div class="section-title">
           <h3>선택 날짜 QT 기록</h3>
           <span>수정 / 삭제 가능</span>
@@ -213,6 +257,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260221-3"></script>
+    <script src="app.js?v=20260221-4"></script>
   </body>
 </html>
