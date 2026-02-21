@@ -77,15 +77,11 @@ h1 {
   gap: 8px;
 }
 
-<<<<<<< HEAD
 .top-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-
-=======
->>>>>>> 27273b8b8bc7a0ae4d636f62efb7b00d67273b77
 .layout {
   max-width: 1100px;
   margin: 0 auto;
