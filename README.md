@@ -82,6 +82,35 @@ CI 자동 빌드:
 - GitHub Actions의 `Build Windows EXE` 워크플로에서 아티팩트로 EXE를 받을 수 있습니다.
 - 릴리즈 노트 템플릿: `/docs/release-notes/windows-exe-template.md`
 
+## macOS 사용자: APP 하나로 실행
+가장 쉬운 방법은 `HolyFlow.app` 번들을 받아 실행하는 방식입니다.
+
+실행 방법:
+1. GitHub 저장소의 **Actions → Build macOS App** 실행 결과(Artifacts)에서 `HolyFlow-macOS-App` 다운로드
+2. 압축 해제 후 `HolyFlow.app` 실행
+3. 브라우저가 자동으로 열리면 그대로 사용
+
+참고:
+- 처음 실행 시 macOS 보안 경고가 나오면 `HolyFlow.app`을 우클릭 후 `열기`로 실행
+- 앱 종료는 Holy Flow 창의 `Quit` 버튼으로 종료
+- 4173 포트가 이미 사용 중이면 자동으로 다른 포트 사용
+
+## 개발자용: macOS APP 빌드
+macOS에서 아래 명령으로 `HolyFlow.app`를 생성할 수 있습니다.
+
+```bash
+chmod +x ./scripts/build-mac-app.sh
+./scripts/build-mac-app.sh
+```
+
+생성 결과:
+- `dist/HolyFlow-macOS-App/HolyFlow.app`
+- `dist/HolyFlow-macOS-App/README-MACOS.txt`
+- `dist/HolyFlow-macOS-App.zip`
+
+CI 자동 빌드:
+- GitHub Actions의 `Build macOS App` 워크플로에서 아티팩트로 APP을 받을 수 있습니다.
+
 ## Windows 포터블 배포 패키지 만들기
 macOS/Linux에서 아래 명령을 실행하면 Windows에서 압축 해제 후 바로 실행 가능한 폴더가 생성됩니다.
 

@@ -1,0 +1,36 @@
+name: Build macOS App
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "codex/**"
+
+jobs:
+  build-app:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build HolyFlow.app
+        shell: bash
+        run: |
+          chmod +x ./scripts/build-mac-app.sh
+          ./scripts/build-mac-app.sh
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HolyFlow-macOS-App
+          path: |
+            dist/HolyFlow-macOS-App/HolyFlow.app
+            dist/HolyFlow-macOS-App/README-MACOS.txt
+            dist/HolyFlow-macOS-App.zip
