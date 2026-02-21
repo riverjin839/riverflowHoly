@@ -88,9 +88,9 @@ CI 자동 빌드:
 
 실행 방법:
 1. GitHub 저장소의 **Actions → Build macOS App** 실행 결과(Artifacts)에서 본인 칩셋에 맞는 파일 다운로드
-2. Intel Mac: `HolyFlow-macOS-Intel.zip` / Apple Silicon(M1/M2/M3): `HolyFlow-macOS-AppleSilicon.zip`
+2. `HolyFlow-macOS-Universal.zip` 다운로드
 3. 압축 해제 후 내부의 `.app` 실행
-3. 브라우저가 자동으로 열리면 그대로 사용
+4. 브라우저가 자동으로 열리면 그대로 사용
 
 참고:
 - 처음 실행 시 macOS 보안 경고가 나오면 `HolyFlow.app`을 우클릭 후 `열기`로 실행
@@ -112,7 +112,7 @@ chmod +x ./scripts/build-mac-app.sh
 - `dist/HolyFlow-macOS-App.zip`
 
 CI 자동 빌드:
-- GitHub Actions의 `Build macOS App` 워크플로에서 Intel/Apple Silicon 각각 아티팩트로 APP을 받을 수 있습니다.
+- GitHub Actions의 `Build macOS App` 워크플로에서 Universal 아티팩트로 APP을 받을 수 있습니다.
 
 ## Windows 포터블 배포 패키지 만들기
 macOS/Linux에서 아래 명령을 실행하면 Windows에서 압축 해제 후 바로 실행 가능한 폴더가 생성됩니다.
