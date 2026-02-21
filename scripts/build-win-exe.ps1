@@ -52,11 +52,11 @@ Holy Flow - Single EXE
 
 1) Double-click HolyFlow.exe
 2) Browser opens automatically.
-3) Keep the Holy Flow window open while using the app.
+3) Use the app in your browser.
 
 Tips
 - If port 4173 is busy, the app automatically uses another free localhost port.
-- You can close the app by clicking the Exit button in the Holy Flow window.
+- To stop the app, click the "앱 종료" button in the top bar.
 "@
 
 Set-Content -Path (Join-Path $outputDir "README-EXE.txt") -Value $readmeContent -Encoding UTF8

@@ -33,6 +33,7 @@
       </div>
       <div class="top-actions">
         <button type="button" id="installBtn" class="ghost" hidden>앱 설치</button>
+        <button type="button" id="shutdownAppBtn" class="ghost danger-ghost" hidden>앱 종료</button>
         <p id="todayLabel" class="today"></p>
       </div>
     </header>
@@ -42,6 +43,28 @@
         <h2>선택한 날짜의 경건 기록</h2>
         <p>날짜를 이동하며 QT/기도/감사/루틴을 저장·수정·삭제할 수 있습니다.</p>
         <div id="stats" class="stats"></div>
+      </section>
+
+      <section class="card card--hero">
+        <div class="section-title">
+          <h3>기록 달력</h3>
+          <span>기록된 날짜는 하트로 표시됩니다</span>
+        </div>
+        <div class="calendar-toolbar">
+          <button type="button" id="calendarPrevMonthBtn" class="ghost">◀</button>
+          <strong id="calendarMonthLabel"></strong>
+          <button type="button" id="calendarNextMonthBtn" class="ghost">▶</button>
+        </div>
+        <div class="calendar-weekdays" aria-hidden="true">
+          <span>일</span>
+          <span>월</span>
+          <span>화</span>
+          <span>수</span>
+          <span>목</span>
+          <span>금</span>
+          <span>토</span>
+        </div>
+        <div id="calendarGrid" class="calendar-grid"></div>
       </section>
 
       <section class="card">
