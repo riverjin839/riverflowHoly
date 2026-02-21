@@ -48,3 +48,19 @@
 python3 -m http.server 4173
 ```
 브라우저에서 `http://localhost:4173` 접속
+
+## Windows 포터블 배포 패키지 만들기
+macOS/Linux에서 아래 명령을 실행하면 Windows에서 압축 해제 후 바로 실행 가능한 폴더가 생성됩니다.
+
+```bash
+bash scripts/build-win-portable.sh
+```
+
+생성 결과:
+- `dist/HolyFlow-Windows-Portable/`
+- `dist/HolyFlow-Windows-Portable.zip` (zip 명령이 있을 때)
+
+Windows 사용자 실행 방법:
+1. `HolyFlow-Windows-Portable.zip` 압축 해제
+2. `start-holy-flow.bat` 더블클릭
+3. 브라우저에서 `http://localhost:4173` 자동 오픈
