@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260221-10" />
+    <link rel="stylesheet" href="styles.css?v=20260221-11" />
   </head>
   <body>
     <div class="bg-glow bg-glow--left"></div>
@@ -100,6 +100,13 @@
           <div class="settings-group">
             <p class="settings-label">말씀 도우미 설정</p>
             <label class="settings-field">
+              <span>말씀 도우미 방식</span>
+              <select id="assistantModeSelect">
+                <option value="lookup">성경 구절 조회 (기본)</option>
+                <option value="ai">AI 요약/설명 (옵션)</option>
+              </select>
+            </label>
+            <label class="settings-field">
               <span>AI 제공자</span>
               <select id="aiProviderSelect">
                 <option value="openai">ChatGPT</option>
@@ -109,7 +116,7 @@
                 <option value="perplexity">Perplexity</option>
               </select>
             </label>
-            <label class="settings-field">
+            <label class="settings-field" data-assistant-mode="ai">
               <span>오류 처리 방식</span>
               <select id="aiFallbackModeSelect">
                 <option value="auto">자동 대체 (권장)</option>
@@ -121,29 +128,33 @@
               <select id="bibleVersionSelect">
                 <option value="개역개정">개역개정</option>
                 <option value="우리말성경">우리말성경</option>
+                <option value="NIV">NIV</option>
               </select>
             </label>
-            <label class="settings-field" data-ai-key-field="openai">
+            <label class="settings-field" data-assistant-mode="ai" data-ai-key-field="openai">
               <span>ChatGPT 키</span>
               <input id="openaiApiKeyInput" type="password" autocomplete="off" placeholder="sk-..." />
             </label>
-            <label class="settings-field" data-ai-key-field="claude">
+            <label class="settings-field" data-assistant-mode="ai" data-ai-key-field="claude">
               <span>Claude 키</span>
               <input id="claudeApiKeyInput" type="password" autocomplete="off" placeholder="sk-ant-..." />
             </label>
-            <label class="settings-field" data-ai-key-field="gemini">
+            <label class="settings-field" data-assistant-mode="ai" data-ai-key-field="gemini">
               <span>Gemini 키</span>
               <input id="geminiApiKeyInput" type="password" autocomplete="off" placeholder="AIza..." />
             </label>
-            <label class="settings-field" data-ai-key-field="grok">
+            <label class="settings-field" data-assistant-mode="ai" data-ai-key-field="grok">
               <span>Grok 키</span>
               <input id="grokApiKeyInput" type="password" autocomplete="off" placeholder="xai-..." />
             </label>
-            <label class="settings-field" data-ai-key-field="perplexity">
+            <label class="settings-field" data-assistant-mode="ai" data-ai-key-field="perplexity">
               <span>Perplexity 키</span>
               <input id="perplexityApiKeyInput" type="password" autocomplete="off" placeholder="pplx-..." />
             </label>
-            <p class="help-text">자동 대체: 429/쿼터 오류 시 다른 제공자 또는 기본 요청으로 대체합니다.</p>
+            <p class="help-text" data-assistant-mode="lookup">
+              성경 구절 조회 모드는 AI 없이 본문/요약/설명을 조회 API 기반으로 제공합니다.
+            </p>
+            <p class="help-text" data-assistant-mode="ai">자동 대체: 429/쿼터 오류 시 다른 제공자 또는 성경 조회로 대체합니다.</p>
           </div>
         </div>
         <p id="todayLabel" class="today"></p>
@@ -279,6 +290,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260221-10"></script>
+    <script src="app.js?v=20260221-11"></script>
   </body>
 </html>

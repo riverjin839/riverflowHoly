@@ -1,9 +1,9 @@
-const CACHE_NAME = 'holy-flow-v12';
+const CACHE_NAME = 'holy-flow-v13';
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/styles.css?v=20260221-10',
-  '/app.js?v=20260221-10',
+  '/styles.css?v=20260221-11',
+  '/app.js?v=20260221-11',
   '/manifest.webmanifest',
   '/assets/icon.svg',
 ];

@@ -18,7 +18,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib import error as urlerror
 from urllib import request as urlrequest
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote_plus, unquote, urlsplit
 
 import threading
 
@@ -38,6 +38,12 @@ GROK_MODEL = "grok-2-latest"
 PERPLEXITY_MODEL = "sonar"
 BASIC_REQUEST_DAILY_LIMIT = 10
 BASIC_USAGE_FILE = Path.home() / "Library/Application Support/HolyFlow/basic_ai_usage.json"
+BIBLE_API_BASE_URL = "https://api.bible-api.com"
+BIBLE_TRANSLATION_CODES = {
+    "개역개정": ("krv", "koreannew"),
+    "우리말성경": ("koreannew", "korean"),
+    "NIV": ("niv",),
+}
 
 try:
     import certifi
@@ -144,6 +150,20 @@ def should_fallback_to_basic_mode(error_message: str) -> bool:
     return any(keyword in message for keyword in keywords)
 
 
+def build_lookup_summary(reference: str, bible_version: str) -> str:
+    return (
+        f"{reference} 본문을 {bible_version} 번역으로 조회했습니다. "
+        "핵심 문장을 표시하고 오늘 적용 1가지를 기록해보세요."
+    )
+
+
+def build_lookup_explanation(translation_name: str) -> str:
+    return (
+        "AI를 사용하지 않고 성경 조회 API에서 본문을 불러왔습니다.\n"
+        f"조회 번역 소스: {translation_name}"
+    )
+
+
 def build_ai_prompt(passage: str, bible_version: str) -> str:
     return (
         f"사용자 요청 본문: {passage}\n"
@@ -205,6 +225,53 @@ def http_json_post(url: str, headers: dict[str, str], payload: dict) -> dict:
                 "AI API SSL 인증서 검증에 실패했습니다. 최신 APP으로 재빌드/재설치하고, 백신 또는 사내 HTTPS 검사 설정을 확인해주세요."
             ) from exc
         raise RuntimeError(f"AI API 연결 오류: {exc.reason}") from exc
+
+
+def http_json_get(url: str) -> dict:
+    request = urlrequest.Request(
+        url,
+        headers={"Accept": "application/json"},
+        method="GET",
+    )
+
+    try:
+        with urlrequest.urlopen(request, timeout=AI_TIMEOUT_SECONDS, context=SSL_CONTEXT) as response:
+            raw = response.read().decode("utf-8")
+            return json.loads(raw) if raw else {}
+    except urlerror.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"성경 API 오류({exc.code}): {error_body[:240] or exc.reason}") from exc
+    except urlerror.URLError as exc:
+        raise RuntimeError(f"성경 API 연결 오류: {exc.reason}") from exc
+
+
+def lookup_scripture_text(passage: str, bible_version: str) -> dict[str, str]:
+    translation_codes = BIBLE_TRANSLATION_CODES.get(bible_version, ("krv",))
+    last_error = ""
+    encoded_passage = quote_plus(passage)
+
+    for translation_code in translation_codes:
+        try:
+            payload = http_json_get(f"{BIBLE_API_BASE_URL}/{encoded_passage}?translation={translation_code}")
+            passage_text = str(payload.get("text", "")).strip()
+            if not passage_text:
+                verses = payload.get("verses") or []
+                passage_text = "".join(str(verse.get("text", "")) for verse in verses if isinstance(verse, dict)).strip()
+            if not passage_text:
+                raise RuntimeError("본문 텍스트가 비어 있습니다.")
+
+            reference = str(payload.get("reference", "")).strip() or passage
+            translation_name = str(payload.get("translation_name", "")).strip() or translation_code
+            return {
+                "passageText": passage_text,
+                "summary": build_lookup_summary(reference, bible_version),
+                "explanation": build_lookup_explanation(translation_name),
+            }
+        except RuntimeError as exc:
+            last_error = str(exc)
+            continue
+
+    raise RuntimeError(last_error or "성경 본문을 찾지 못했습니다. 본문 표기를 확인해주세요.")
 
 
 def extract_openai_text(payload: dict) -> str:
@@ -376,7 +443,8 @@ class HolyFlowHandler(SimpleHTTPRequestHandler):
         return target
 
     def do_POST(self) -> None:
-        if urlsplit(self.path).path != "/__holyflow_ai":
+        request_path = urlsplit(self.path).path
+        if request_path not in {"/__holyflow_ai", "/__holyflow_bible"}:
             self.send_error(404, "Not Found")
             return
 
@@ -388,18 +456,23 @@ class HolyFlowHandler(SimpleHTTPRequestHandler):
 
             body = self.rfile.read(content_length).decode("utf-8")
             payload = json.loads(body)
-            provider = str(payload.get("provider", "")).strip().lower()
-            api_key = str(payload.get("apiKey", "")).strip()
             passage = str(payload.get("passage", "")).strip()
             bible_version = str(payload.get("bibleVersion", "개역개정")).strip()
-            fallback_mode = str(payload.get("fallbackMode", "auto")).strip().lower()
-
-            if provider not in {"openai", "claude", "gemini", "grok", "perplexity"}:
-                raise ValueError("AI 제공자를 선택해주세요.")
             if not passage:
                 raise ValueError("본문을 입력해주세요.")
-            if bible_version not in {"개역개정", "우리말성경"}:
+            if bible_version not in {"개역개정", "우리말성경", "NIV"}:
                 bible_version = "개역개정"
+
+            if request_path == "/__holyflow_bible":
+                result = lookup_scripture_text(passage, bible_version)
+                self._send_json(200, {"result": result})
+                return
+
+            provider = str(payload.get("provider", "")).strip().lower()
+            api_key = str(payload.get("apiKey", "")).strip()
+            fallback_mode = str(payload.get("fallbackMode", "auto")).strip().lower()
+            if provider not in {"openai", "claude", "gemini", "grok", "perplexity"}:
+                raise ValueError("AI 제공자를 선택해주세요.")
 
             result = request_ai_analysis(provider, api_key, passage, bible_version, fallback_mode=fallback_mode)
             self._send_json(200, {"result": result})
@@ -513,7 +586,7 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-10"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-11"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 

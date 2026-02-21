@@ -5,7 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-10';
+const APP_BUNDLE_VERSION = '20260221-11';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 const aiProviders = ['openai', 'claude', 'gemini', 'grok', 'perplexity'];
 const aiProviderLabelMap = {
@@ -15,6 +15,10 @@ const aiProviderLabelMap = {
   grok: 'Grok',
   perplexity: 'Perplexity',
 };
+const assistantModeLabelMap = {
+  lookup: '성경 조회',
+  ai: 'AI',
+};
 
 const defaultState = {
   qts: [],
@@ -22,10 +26,11 @@ const defaultState = {
   gratitudes: [],
   routineByDate: {},
   ui: {
-    settingsVersion: 6,
+    settingsVersion: 7,
     showRecordCalendar: false,
     showQtHistory: false,
     prayerCategories: defaultPrayerCategories,
+    assistantMode: 'lookup',
     aiProvider: 'openai',
     aiFallbackMode: 'auto',
     bibleVersion: '개역개정',
@@ -91,8 +96,9 @@ const normalizeCategoryList = (categories) => {
 
 const normalizeAiProvider = (provider) => (aiProviders.includes(provider) ? provider : 'openai');
 const normalizeAiFallbackMode = (mode) => (mode === 'strict' ? 'strict' : 'auto');
+const normalizeAssistantMode = (mode) => (mode === 'ai' ? 'ai' : 'lookup');
 
-const normalizeBibleVersion = (version) => (['개역개정', '우리말성경'].includes(version) ? version : '개역개정');
+const normalizeBibleVersion = (version) => (['개역개정', '우리말성경', 'NIV'].includes(version) ? version : '개역개정');
 
 const asSafeString = (value) => (typeof value === 'string' ? value.trim() : '');
 
@@ -201,10 +207,11 @@ const normalizeState = (parsed) => {
         ? parsed.routineByDate
         : {},
     ui: {
-      settingsVersion: 6,
+      settingsVersion: 7,
       showRecordCalendar: hasSettingsV3 ? rawUi.showRecordCalendar === true : false,
       showQtHistory: hasSettingsV3 ? rawUi.showQtHistory === true : false,
       prayerCategories: normalizeCategoryList(rawUi.prayerCategories),
+      assistantMode: normalizeAssistantMode(rawUi.assistantMode),
       aiProvider: normalizeAiProvider(rawUi.aiProvider),
       aiFallbackMode: normalizeAiFallbackMode(rawUi.aiFallbackMode),
       bibleVersion: normalizeBibleVersion(rawUi.bibleVersion),
@@ -449,6 +456,7 @@ const renderPrayerCategorySettings = () => {
 };
 
 const renderAiSettings = () => {
+  const assistantModeSelect = $('#assistantModeSelect');
   const providerSelect = $('#aiProviderSelect');
   const fallbackModeSelect = $('#aiFallbackModeSelect');
   const bibleVersionSelect = $('#bibleVersionSelect');
@@ -458,7 +466,9 @@ const renderAiSettings = () => {
   const grokInput = $('#grokApiKeyInput');
   const perplexityInput = $('#perplexityApiKeyInput');
   const uiState = state?.ui || {};
+  const assistantMode = normalizeAssistantMode(uiState.assistantMode);
 
+  if (assistantModeSelect) assistantModeSelect.value = assistantMode;
   if (providerSelect) providerSelect.value = normalizeAiProvider(uiState.aiProvider);
   if (fallbackModeSelect) fallbackModeSelect.value = normalizeAiFallbackMode(uiState.aiFallbackMode);
   if (bibleVersionSelect) bibleVersionSelect.value = normalizeBibleVersion(uiState.bibleVersion);
@@ -467,6 +477,9 @@ const renderAiSettings = () => {
   if (geminiInput) geminiInput.value = asSafeString(uiState.geminiApiKey);
   if (grokInput) grokInput.value = asSafeString(uiState.grokApiKey);
   if (perplexityInput) perplexityInput.value = asSafeString(uiState.perplexityApiKey);
+  document.querySelectorAll('[data-assistant-mode]').forEach((field) => {
+    field.hidden = field.getAttribute('data-assistant-mode') !== assistantMode;
+  });
   document.querySelectorAll('[data-ai-key-field]').forEach((field) => {
     field.hidden = field.getAttribute('data-ai-key-field') !== normalizeAiProvider(uiState.aiProvider);
   });
@@ -481,11 +494,12 @@ const getAiKeyMap = () => ({
   });
 
 const getActiveAiConfig = () => {
+  const assistantMode = normalizeAssistantMode(state?.ui?.assistantMode);
   const provider = normalizeAiProvider(state?.ui?.aiProvider);
   const fallbackMode = normalizeAiFallbackMode(state?.ui?.aiFallbackMode);
   const bibleVersion = normalizeBibleVersion(state?.ui?.bibleVersion);
   const keyMap = getAiKeyMap();
-  return { provider, fallbackMode, bibleVersion, apiKey: keyMap[provider] || '', keyMap };
+  return { assistantMode, provider, fallbackMode, bibleVersion, apiKey: keyMap[provider] || '', keyMap };
 };
 
 const buildAiAttemptProviders = (selectedProvider, keyMap, fallbackMode) => {
@@ -821,7 +835,56 @@ const registerDesktopShutdown = () => {
 };
 
 const requestBibleAssistant = async (passage) => {
-  const { provider, fallbackMode, bibleVersion, keyMap } = getActiveAiConfig();
+  const { assistantMode, provider, fallbackMode, bibleVersion, keyMap } = getActiveAiConfig();
+
+  const requestByLookup = async () => {
+    let response;
+    try {
+      response = await fetch('/__holyflow_bible', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bibleVersion,
+          passage,
+        }),
+      });
+    } catch {
+      throw new Error('성경 조회 서버 연결에 실패했습니다. 최신 EXE/APP 버전으로 실행해주세요.');
+    }
+
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error('성경 조회 기능은 최신 데스크톱(EXE/APP) 실행기에서 지원됩니다.');
+      }
+      throw new Error(payload?.error || '성경 본문 조회에 실패했습니다.');
+    }
+
+    const result = payload?.result;
+    if (!result || typeof result !== 'object') {
+      throw new Error('성경 조회 응답 형식이 올바르지 않습니다.');
+    }
+
+    return {
+      provider: assistantModeLabelMap.lookup,
+      bibleVersion,
+      passage,
+      passageText: asSafeString(result.passageText),
+      summary: asSafeString(result.summary),
+      explanation: asSafeString(result.explanation),
+    };
+  };
+
+  if (assistantMode !== 'ai') {
+    return requestByLookup();
+  }
+
   const attemptProviders = buildAiAttemptProviders(provider, keyMap, fallbackMode);
   let firstError = null;
   let deferredBasicResult = null;
@@ -900,6 +963,14 @@ const requestBibleAssistant = async (passage) => {
       summary: asSafeString(deferredBasicResult.result.summary),
       explanation: asSafeString(deferredBasicResult.result.explanation),
     };
+  }
+
+  if (fallbackMode === 'auto') {
+    try {
+      return await requestByLookup();
+    } catch {
+      // ignore lookup fallback error and throw first AI error
+    }
   }
 
   throw firstError || new Error('AI 응답 생성에 실패했습니다.');
@@ -1010,6 +1081,13 @@ document.body.addEventListener('change', async (event) => {
 
   if (event.target.id === 'aiProviderSelect') {
     state.ui.aiProvider = normalizeAiProvider(event.target.value);
+    await persistState();
+    renderAiSettings();
+    return;
+  }
+
+  if (event.target.id === 'assistantModeSelect') {
+    state.ui.assistantMode = normalizeAssistantMode(event.target.value);
     await persistState();
     renderAiSettings();
     return;
