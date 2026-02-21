@@ -236,10 +236,15 @@ def extract_gemini_text(payload: dict) -> str:
     return "".join(fragments)
 
 
-def request_ai_analysis(provider: str, api_key: str, passage: str, bible_version: str) -> dict[str, str]:
+def request_ai_analysis(
+    provider: str, api_key: str, passage: str, bible_version: str, fallback_mode: str = "auto"
+) -> dict[str, str]:
     prompt = build_ai_prompt(passage, bible_version)
+    fallback_mode = "strict" if fallback_mode == "strict" else "auto"
 
     if not api_key:
+        if fallback_mode == "strict":
+            raise RuntimeError("API 키를 입력해주세요. (설정 > 말씀 도우미)")
         return build_basic_fallback_result(provider, passage, bible_version)
 
     try:
@@ -320,7 +325,7 @@ def request_ai_analysis(provider: str, api_key: str, passage: str, bible_version
             )
             return parse_ai_json(extract_openai_text(payload))
     except RuntimeError as exc:
-        if should_fallback_to_basic_mode(str(exc)):
+        if fallback_mode == "auto" and should_fallback_to_basic_mode(str(exc)):
             return build_basic_fallback_result(provider, passage, bible_version, source_error=str(exc))
         raise
 
@@ -387,6 +392,7 @@ class HolyFlowHandler(SimpleHTTPRequestHandler):
             api_key = str(payload.get("apiKey", "")).strip()
             passage = str(payload.get("passage", "")).strip()
             bible_version = str(payload.get("bibleVersion", "개역개정")).strip()
+            fallback_mode = str(payload.get("fallbackMode", "auto")).strip().lower()
 
             if provider not in {"openai", "claude", "gemini", "grok", "perplexity"}:
                 raise ValueError("AI 제공자를 선택해주세요.")
@@ -395,7 +401,7 @@ class HolyFlowHandler(SimpleHTTPRequestHandler):
             if bible_version not in {"개역개정", "우리말성경"}:
                 bible_version = "개역개정"
 
-            result = request_ai_analysis(provider, api_key, passage, bible_version)
+            result = request_ai_analysis(provider, api_key, passage, bible_version, fallback_mode=fallback_mode)
             self._send_json(200, {"result": result})
         except ValueError as exc:
             self._send_json(400, {"error": str(exc)})
@@ -507,7 +513,7 @@ def main() -> int:
         raise RuntimeError(f"Required app files are missing: {', '.join(missing)}")
 
     port = pick_port(args.port)
-    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-9"
+    url = f"http://127.0.0.1:{port}/?desktop=1&app=1&v=20260221-10"
     server = ThreadingHTTPServer(("127.0.0.1", port), build_handler(site_root))
     server.daemon_threads = True
 

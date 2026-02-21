@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20260221-9" />
+    <link rel="stylesheet" href="styles.css?v=20260221-10" />
   </head>
   <body>
     <div class="bg-glow bg-glow--left"></div>
@@ -110,6 +110,13 @@
               </select>
             </label>
             <label class="settings-field">
+              <span>오류 처리 방식</span>
+              <select id="aiFallbackModeSelect">
+                <option value="auto">자동 대체 (권장)</option>
+                <option value="strict">선택 제공자만 사용</option>
+              </select>
+            </label>
+            <label class="settings-field">
               <span>성경 번역</span>
               <select id="bibleVersionSelect">
                 <option value="개역개정">개역개정</option>
@@ -136,7 +143,7 @@
               <span>Perplexity 키</span>
               <input id="perplexityApiKeyInput" type="password" autocomplete="off" placeholder="pplx-..." />
             </label>
-            <p class="help-text">키가 비어 있으면 기본 요청 모드로 먼저 시도하고, 만료되면 키 입력을 안내합니다.</p>
+            <p class="help-text">자동 대체: 429/쿼터 오류 시 다른 제공자 또는 기본 요청으로 대체합니다.</p>
           </div>
         </div>
         <p id="todayLabel" class="today"></p>
@@ -272,6 +279,6 @@
       </section>
     </main>
 
-    <script src="app.js?v=20260221-9"></script>
+    <script src="app.js?v=20260221-10"></script>
   </body>
 </html>

@@ -5,7 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-9';
+const APP_BUNDLE_VERSION = '20260221-10';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 const aiProviders = ['openai', 'claude', 'gemini', 'grok', 'perplexity'];
 const aiProviderLabelMap = {
@@ -22,11 +22,12 @@ const defaultState = {
   gratitudes: [],
   routineByDate: {},
   ui: {
-    settingsVersion: 5,
+    settingsVersion: 6,
     showRecordCalendar: false,
     showQtHistory: false,
     prayerCategories: defaultPrayerCategories,
     aiProvider: 'openai',
+    aiFallbackMode: 'auto',
     bibleVersion: '개역개정',
     openaiApiKey: '',
     claudeApiKey: '',
@@ -89,6 +90,7 @@ const normalizeCategoryList = (categories) => {
 };
 
 const normalizeAiProvider = (provider) => (aiProviders.includes(provider) ? provider : 'openai');
+const normalizeAiFallbackMode = (mode) => (mode === 'strict' ? 'strict' : 'auto');
 
 const normalizeBibleVersion = (version) => (['개역개정', '우리말성경'].includes(version) ? version : '개역개정');
 
@@ -199,11 +201,12 @@ const normalizeState = (parsed) => {
         ? parsed.routineByDate
         : {},
     ui: {
-      settingsVersion: 5,
+      settingsVersion: 6,
       showRecordCalendar: hasSettingsV3 ? rawUi.showRecordCalendar === true : false,
       showQtHistory: hasSettingsV3 ? rawUi.showQtHistory === true : false,
       prayerCategories: normalizeCategoryList(rawUi.prayerCategories),
       aiProvider: normalizeAiProvider(rawUi.aiProvider),
+      aiFallbackMode: normalizeAiFallbackMode(rawUi.aiFallbackMode),
       bibleVersion: normalizeBibleVersion(rawUi.bibleVersion),
       openaiApiKey: asSafeString(rawUi.openaiApiKey),
       claudeApiKey: asSafeString(rawUi.claudeApiKey),
@@ -447,6 +450,7 @@ const renderPrayerCategorySettings = () => {
 
 const renderAiSettings = () => {
   const providerSelect = $('#aiProviderSelect');
+  const fallbackModeSelect = $('#aiFallbackModeSelect');
   const bibleVersionSelect = $('#bibleVersionSelect');
   const openaiInput = $('#openaiApiKeyInput');
   const claudeInput = $('#claudeApiKeyInput');
@@ -456,6 +460,7 @@ const renderAiSettings = () => {
   const uiState = state?.ui || {};
 
   if (providerSelect) providerSelect.value = normalizeAiProvider(uiState.aiProvider);
+  if (fallbackModeSelect) fallbackModeSelect.value = normalizeAiFallbackMode(uiState.aiFallbackMode);
   if (bibleVersionSelect) bibleVersionSelect.value = normalizeBibleVersion(uiState.bibleVersion);
   if (openaiInput) openaiInput.value = asSafeString(uiState.openaiApiKey);
   if (claudeInput) claudeInput.value = asSafeString(uiState.claudeApiKey);
@@ -477,12 +482,14 @@ const getAiKeyMap = () => ({
 
 const getActiveAiConfig = () => {
   const provider = normalizeAiProvider(state?.ui?.aiProvider);
+  const fallbackMode = normalizeAiFallbackMode(state?.ui?.aiFallbackMode);
   const bibleVersion = normalizeBibleVersion(state?.ui?.bibleVersion);
   const keyMap = getAiKeyMap();
-  return { provider, bibleVersion, apiKey: keyMap[provider] || '', keyMap };
+  return { provider, fallbackMode, bibleVersion, apiKey: keyMap[provider] || '', keyMap };
 };
 
-const buildAiAttemptProviders = (selectedProvider, keyMap) => {
+const buildAiAttemptProviders = (selectedProvider, keyMap, fallbackMode) => {
+  if (fallbackMode === 'strict') return [selectedProvider];
   const ordered = [selectedProvider, ...aiProviders.filter((provider) => provider !== selectedProvider)];
   const keyedProviders = ordered.filter((provider) => Boolean(asSafeString(keyMap[provider])));
   if (!keyedProviders.length) return [selectedProvider];
@@ -814,8 +821,8 @@ const registerDesktopShutdown = () => {
 };
 
 const requestBibleAssistant = async (passage) => {
-  const { provider, bibleVersion, keyMap } = getActiveAiConfig();
-  const attemptProviders = buildAiAttemptProviders(provider, keyMap);
+  const { provider, fallbackMode, bibleVersion, keyMap } = getActiveAiConfig();
+  const attemptProviders = buildAiAttemptProviders(provider, keyMap, fallbackMode);
   let firstError = null;
   let deferredBasicResult = null;
 
@@ -827,6 +834,7 @@ const requestBibleAssistant = async (passage) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           provider: providerName,
+          fallbackMode,
           bibleVersion,
           passage,
           apiKey,
@@ -866,7 +874,7 @@ const requestBibleAssistant = async (passage) => {
       const moreKeyedProviders = attemptProviders
         .slice(index + 1)
         .some((nextProvider) => Boolean(asSafeString(keyMap[nextProvider])));
-      if (isBasicModePayload(result) && apiKey && moreKeyedProviders) {
+      if (fallbackMode === 'auto' && isBasicModePayload(result) && apiKey && moreKeyedProviders) {
         deferredBasicResult = { providerName, result };
         continue;
       }
@@ -1004,6 +1012,12 @@ document.body.addEventListener('change', async (event) => {
     state.ui.aiProvider = normalizeAiProvider(event.target.value);
     await persistState();
     renderAiSettings();
+    return;
+  }
+
+  if (event.target.id === 'aiFallbackModeSelect') {
+    state.ui.aiFallbackMode = normalizeAiFallbackMode(event.target.value);
+    await persistState();
     return;
   }
 
