@@ -247,6 +247,20 @@ h1 {
   grid-template-columns: 1fr auto;
 }
 
+.scripture-inline {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.mini-action-btn {
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  line-height: 1;
+  white-space: nowrap;
+}
+
 input,
 textarea,
 select,
@@ -713,6 +727,10 @@ button,
   .inline-form,
   .simple-inline {
     grid-template-columns: 1fr;
+  }
+
+  .scripture-inline {
+    grid-template-columns: 1fr auto;
   }
 
   .stats {

@@ -5,7 +5,7 @@ const LOCAL_FALLBACK_KEY = 'holy-flow-fallback';
 const SECURE_BACKUP_FORMAT = 'holy-flow-secure-backup';
 const SECURE_BACKUP_VERSION = 1;
 const SECURE_BACKUP_PBKDF2_ITERATIONS = 210000;
-const APP_BUNDLE_VERSION = '20260221-7';
+const APP_BUNDLE_VERSION = '20260221-8';
 const defaultPrayerCategories = ['개인', '가정', '교회', '일터', '선교'];
 
 const defaultState = {
@@ -471,12 +471,12 @@ const getActiveAiConfig = () => {
 };
 
 const setBibleAssistantLoading = (loading) => {
-  const btn = $('#bibleAssistantSubmitBtn');
+  const btn = $('#qtAiRequestBtn');
   const qtInput = $('#qtScriptureInput') || $('#qtForm input[name="scripture"]');
   const loadingEl = $('#bibleAssistantLoading');
   if (!btn) return;
   btn.disabled = loading;
-  btn.textContent = loading ? '요청 중...' : '오늘의 본문으로 불러오기';
+  btn.textContent = loading ? 'AI 요청 중...' : 'AI 요청';
   if (qtInput) qtInput.disabled = loading;
   if (loadingEl) loadingEl.hidden = !loading;
 };
@@ -506,7 +506,7 @@ const renderBibleAssistantResult = ({
 
   if (!passageText && !summary && !explanation) {
     container.innerHTML =
-      '<p class="help-text">QT 일기장의 오늘의 본문을 입력하세요. API 키가 없으면 기본 요청 모드로 먼저 시도합니다.</p>';
+      '<p class="help-text">QT 일기장의 오늘의 본문 오른쪽의 AI 요청 버튼을 눌러주세요. API 키가 없으면 기본 요청 모드로 먼저 시도합니다.</p>';
     return;
   }
 
@@ -861,8 +861,7 @@ const getBibleAssistantPassage = () => {
   return '';
 };
 
-$('#bibleAssistantForm')?.addEventListener('submit', async (event) => {
-  event.preventDefault();
+$('#qtAiRequestBtn')?.addEventListener('click', async () => {
   const passage = getBibleAssistantPassage();
   if (!passage) {
     renderBibleAssistantResult({ error: "QT 일기장의 '오늘의 본문'을 먼저 입력하거나 저장해주세요." });
